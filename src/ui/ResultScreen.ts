@@ -45,7 +45,7 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
   const title = element('h2', 'section-title', '화살별 점수');
   const strip = element('div', 'arrow-strip');
   summary.record.arrowScores.forEach((score, index) => {
-    const chip = element('span', 'arrow-chip', `${index + 1} · ${score}`);
+    const chip = element('span', 'arrow-chip', `${index + 1}발 · ${score}`);
     if (score === 10) {
       chip.classList.add('is-bullseye');
     }
@@ -57,7 +57,7 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
   status.innerHTML = `
     <h2 class="section-title">기록 반영</h2>
     <p>${summary.isPersonalBest ? '개인 최고 기록이 갱신되었습니다.' : '이번 기록도 명예의 전당에 저장되었습니다.'}</p>
-    <p>${summary.unlockedMode ? '72발 랭킹 라운드 구조가 열렸습니다.' : '현재는 6발/12발 중심 루프를 유지합니다.'}</p>
+    <p>${summary.unlockedMode ? '72발 랭킹 라운드 확장 준비가 열렸습니다.' : '지금은 6발과 12발 중심으로 반복 플레이를 즐길 수 있습니다.'}</p>
   `;
 
   stats.append(overview, arrows, status);

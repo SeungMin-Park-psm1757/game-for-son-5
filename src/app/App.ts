@@ -1,10 +1,9 @@
 import { buildRoute, parseModeId, parseRoute } from './routes';
-import { loadSnapshot, resetScope, saveCalibration, saveRecords, saveSettings, saveStoryFlags, saveUnlockedModes } from '../persistence/storage';
+import { loadSnapshot, resetScope, saveRecords, saveSettings, saveStoryFlags, saveUnlockedModes } from '../persistence/storage';
 import { StoryEngine } from '../story/StoryEngine';
 import { StoryOverlay } from '../story/StoryOverlay';
 import { AudioService } from '../services/AudioService';
 import { HapticsService } from '../services/HapticsService';
-import { createCalibrationScreen } from '../ui/CalibrationScreen';
 import { createHomeHallOfFame } from '../ui/HomeHallOfFame';
 import { showResetConfirmModal } from '../ui/ResetConfirmModal';
 import { createResultScreen } from '../ui/ResultScreen';
@@ -24,7 +23,6 @@ export class App {
   private readonly haptics = new HapticsService();
   private currentScreen: ScreenController | null = null;
   private lastResult: MatchSummary | null = null;
-  private pendingMode: ModeId | null = null;
   private pendingResultStory: StoryTrigger | null = null;
 
   constructor(private readonly root: HTMLElement) {
@@ -54,16 +52,11 @@ export class App {
       this.mountScreen(
         createHomeHallOfFame({
           records: this.snapshot.records,
-          calibration: this.snapshot.calibration,
           settings: this.snapshot.settings,
           homeComment: new StoryEngine(this.snapshot.storyFlags).getRandomHomeComment().lines[0],
           ranking72Unlocked: this.snapshot.unlockedModes.includes('ranking72'),
           onPractice: () => void this.beginMode('practice6'),
           onChallenge: () => void this.beginMode('trial12'),
-          onSync: () => {
-            this.pendingMode = null;
-            this.navigate(buildRoute('calibration', { flow: this.snapshot.calibration ? 'quick' : 'full' }));
-          },
           onSettings: () => this.navigate(buildRoute('settings')),
           onResetHoldComplete: () =>
             showResetConfirmModal(this.overlayHost, (scope) => {
@@ -93,32 +86,7 @@ export class App {
     }
 
     if (route.name === 'calibration') {
-      const flow = route.params.get('flow') === 'quick' ? 'quick' : 'full';
-      this.mountScreen(
-        createCalibrationScreen({
-          flow,
-          existingCalibration: this.snapshot.calibration,
-          settings: this.snapshot.settings,
-          onCancel: () => this.navigate(buildRoute('home')),
-          onComplete: async (profile, settings) => {
-            this.snapshot = {
-              ...this.snapshot,
-              calibration: profile,
-              settings,
-            };
-            saveCalibration(profile);
-            saveSettings(settings);
-            this.syncServices();
-            await this.triggerStory({ type: 'first_calibration_complete' });
-            const nextMode = this.pendingMode ?? parseModeId(route.params.get('mode'));
-            if (this.pendingMode || route.params.get('mode')) {
-              this.navigate(buildRoute('match', { mode: nextMode }));
-            } else {
-              this.navigate(buildRoute('home'));
-            }
-          },
-        }),
-      );
+      this.navigate(buildRoute('home'));
       return;
     }
 
@@ -177,14 +145,9 @@ export class App {
   }
 
   private async beginMode(mode: ModeId): Promise<void> {
-    this.pendingMode = mode;
     await this.audio.resume();
     await this.triggerStory({ type: 'first_launch' });
-    if (!this.snapshot.calibration?.hasCompletedFullCalibration) {
-      this.navigate(buildRoute('calibration', { flow: 'full', mode }));
-      return;
-    }
-    this.navigate(buildRoute('calibration', { flow: 'quick', mode }));
+    this.navigate(buildRoute('match', { mode }));
   }
 
   private async handleMatchComplete(summary: MatchSummary): Promise<void> {
@@ -223,7 +186,6 @@ export class App {
       mode: summary.record.mode,
       resultBand: summary.resultBand,
     };
-    this.pendingMode = null;
     this.navigate(buildRoute('result'));
   }
 

@@ -1,42 +1,42 @@
 import type { CalibrationProfile } from '../types';
 import { AimFilter } from './AimFilter';
-import { applyQuickSync, normalizeRawSample } from './CalibrationService';
 import type { AimInputAdapter, AimSnapshot, RawAimSample } from './types';
+
+const TOUCH_YAW_RANGE = 1.22;
+const TOUCH_PITCH_RANGE = 1.05;
 
 export class TouchAimInput implements AimInputAdapter {
   public readonly mode = 'touch' as const;
-  private calibration: CalibrationProfile | null = null;
   private filter = new AimFilter();
   private surface: HTMLElement | null = null;
-  private dragStart: { x: number; y: number } | null = null;
+  private activePointerId: number | null = null;
   private raw: RawAimSample = { yaw: 0, pitch: 0, timestamp: Date.now() };
   private previousRaw: RawAimSample = this.raw;
 
   private readonly onPointerDown = (event: PointerEvent) => {
-    this.dragStart = { x: event.clientX, y: event.clientY };
-  };
-
-  private readonly onPointerMove = (event: PointerEvent) => {
-    if (!this.surface || !this.dragStart) {
+    if (!this.surface) {
       return;
     }
 
-    const rect = this.surface.getBoundingClientRect();
-    const deltaX = (event.clientX - this.dragStart.x) / Math.max(rect.width, 1);
-    const deltaY = (event.clientY - this.dragStart.y) / Math.max(rect.height, 1);
-
-    this.previousRaw = this.raw;
-    this.raw = {
-      yaw: this.raw.yaw + deltaX * 2.3,
-      pitch: this.raw.pitch - deltaY * 2.0,
-      timestamp: Date.now(),
-    };
-
-    this.dragStart = { x: event.clientX, y: event.clientY };
+    this.activePointerId = event.pointerId;
+    this.surface.setPointerCapture?.(event.pointerId);
+    this.updateFromEvent(event);
   };
 
-  private readonly onPointerUp = () => {
-    this.dragStart = null;
+  private readonly onPointerMove = (event: PointerEvent) => {
+    if (this.activePointerId !== event.pointerId) {
+      return;
+    }
+
+    this.updateFromEvent(event);
+  };
+
+  private readonly onPointerUp = (event: PointerEvent) => {
+    if (this.activePointerId !== event.pointerId) {
+      return;
+    }
+
+    this.activePointerId = null;
   };
 
   public isSupported(): boolean {
@@ -68,17 +68,16 @@ export class TouchAimInput implements AimInputAdapter {
       this.surface.removeEventListener('pointerleave', this.onPointerUp);
       this.surface = null;
     }
+    this.activePointerId = null;
   }
 
-  public setCalibration(profile: CalibrationProfile | null): void {
-    this.calibration = profile;
-    this.filter.configure(profile?.smoothingAlpha ?? 0.18, profile?.deadzone ?? 0.02);
+  public setCalibration(_profile: CalibrationProfile | null): void {
+    this.filter.configure(0.18, 0.015);
     this.filter.reset();
   }
 
   public getSnapshot(): AimSnapshot {
-    const normalized = normalizeRawSample(this.calibration, this.raw);
-    const filtered = this.filter.update(normalized);
+    const filtered = this.filter.update(this.raw);
     const motion = Math.hypot(this.raw.yaw - this.previousRaw.yaw, this.raw.pitch - this.previousRaw.pitch);
 
     return {
@@ -89,7 +88,7 @@ export class TouchAimInput implements AimInputAdapter {
       pitch: filtered.pitch,
       smoothedYaw: filtered.smoothedYaw,
       smoothedPitch: filtered.smoothedPitch,
-      stability: Math.max(0, 1 - motion * 0.75),
+      stability: Math.max(0, 1 - motion * 0.85),
     };
   }
 
@@ -97,13 +96,30 @@ export class TouchAimInput implements AimInputAdapter {
     return this.raw;
   }
 
-  public recenter(sample = this.raw): void {
-    if (this.calibration) {
-      this.calibration = applyQuickSync(this.calibration, sample);
-      this.setCalibration(this.calibration);
-    } else {
-      this.previousRaw = this.raw;
-      this.raw = { yaw: 0, pitch: 0, timestamp: sample.timestamp };
-    }
+  public recenter(): void {
+    this.previousRaw = this.raw;
+    this.raw = { yaw: 0, pitch: 0, timestamp: Date.now() };
+    this.filter.reset();
   }
+
+  private updateFromEvent(event: PointerEvent): void {
+    if (!this.surface) {
+      return;
+    }
+
+    const rect = this.surface.getBoundingClientRect();
+    const normalizedX = ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2;
+    const normalizedY = ((event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5) * 2;
+
+    this.previousRaw = this.raw;
+    this.raw = {
+      yaw: clamp(normalizedX * TOUCH_YAW_RANGE, -TOUCH_YAW_RANGE, TOUCH_YAW_RANGE),
+      pitch: clamp(normalizedY * -TOUCH_PITCH_RANGE, -TOUCH_PITCH_RANGE, TOUCH_PITCH_RANGE),
+      timestamp: Date.now(),
+    };
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

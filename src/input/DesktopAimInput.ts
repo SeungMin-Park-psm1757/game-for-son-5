@@ -1,11 +1,9 @@
 import type { CalibrationProfile } from '../types';
 import { AimFilter } from './AimFilter';
-import { applyQuickSync, normalizeRawSample } from './CalibrationService';
 import type { AimInputAdapter, AimSnapshot, RawAimSample } from './types';
 
 export class DesktopAimInput implements AimInputAdapter {
   public readonly mode = 'desktop' as const;
-  private calibration: CalibrationProfile | null = null;
   private filter = new AimFilter();
   private surface: HTMLElement | null = null;
   private raw: RawAimSample = { yaw: 0, pitch: 0, timestamp: Date.now() };
@@ -22,14 +20,14 @@ export class DesktopAimInput implements AimInputAdapter {
 
     this.previousRaw = this.raw;
     this.raw = {
-      yaw: normalizedX * 1.3,
-      pitch: normalizedY * -1.1,
+      yaw: normalizedX * 1.18,
+      pitch: normalizedY * -1.02,
       timestamp: Date.now(),
     };
   };
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
-    const step = 0.045;
+    const step = 0.04;
     let nextYaw = this.raw.yaw;
     let nextPitch = this.raw.pitch;
 
@@ -75,15 +73,13 @@ export class DesktopAimInput implements AimInputAdapter {
     }
   }
 
-  public setCalibration(profile: CalibrationProfile | null): void {
-    this.calibration = profile;
-    this.filter.configure(profile?.smoothingAlpha ?? 0.2, profile?.deadzone ?? 0.02);
+  public setCalibration(_profile: CalibrationProfile | null): void {
+    this.filter.configure(0.2, 0.015);
     this.filter.reset();
   }
 
   public getSnapshot(): AimSnapshot {
-    const normalized = normalizeRawSample(this.calibration, this.raw);
-    const filtered = this.filter.update(normalized);
+    const filtered = this.filter.update(this.raw);
     const motion = Math.hypot(this.raw.yaw - this.previousRaw.yaw, this.raw.pitch - this.previousRaw.pitch);
 
     return {
@@ -94,7 +90,7 @@ export class DesktopAimInput implements AimInputAdapter {
       pitch: filtered.pitch,
       smoothedYaw: filtered.smoothedYaw,
       smoothedPitch: filtered.smoothedPitch,
-      stability: Math.max(0, 1 - motion * 0.9),
+      stability: Math.max(0, 1 - motion * 0.92),
     };
   }
 
@@ -102,10 +98,9 @@ export class DesktopAimInput implements AimInputAdapter {
     return this.raw;
   }
 
-  public recenter(sample = this.raw): void {
-    if (this.calibration) {
-      this.calibration = applyQuickSync(this.calibration, sample);
-      this.setCalibration(this.calibration);
-    }
+  public recenter(): void {
+    this.previousRaw = this.raw;
+    this.raw = { yaw: 0, pitch: 0, timestamp: Date.now() };
+    this.filter.reset();
   }
 }

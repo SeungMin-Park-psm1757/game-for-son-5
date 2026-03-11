@@ -66,7 +66,7 @@ export class StoryOverlay {
     const text = element('div', 'story-scene-text');
     const footer = element('div', 'story-scene-footer');
     const next = element('button', 'primary-button', '다음');
-    const skip = element('button', 'secondary-button', '스킵');
+    const skip = element('button', 'secondary-button', '건너뛰기');
     footer.append(skip, next);
     card.append(portraitSlot, speaker, text, footer);
     scrim.append(card);

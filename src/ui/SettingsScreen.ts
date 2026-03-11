@@ -9,25 +9,24 @@ interface SettingsScreenOptions {
 
 export function createSettingsScreen(options: SettingsScreenOptions): ScreenController {
   const screen = element('section', 'screen settings-screen');
-  const card = element('div', 'panel');
+  const card = element('div', 'panel settings-panel');
   const title = element('h2', 'section-title', '설정');
-  const intro = element('p', 'muted-text', '모바일 환경과 손맛에 맞춰 입력과 연출 강도를 조절할 수 있습니다.');
+  const intro = element(
+    'p',
+    'muted-text',
+    '모바일은 기본적으로 터치 조준을 사용하고, 데스크톱에서는 마우스 조준으로 자동 전환됩니다.',
+  );
   const form = element('div', 'settings-grid');
 
-  const profileInput = createTextControl('프로필명', options.settings.profileName);
-  const inputModeSelect = createSelectControl(
-    '기본 입력',
-    options.settings.preferredInput,
-    [
-      ['auto', '자동'],
-      ['sensor', '센서'],
-      ['touch', '터치'],
-      ['desktop', '데스크톱'],
-    ],
-  );
-  const reduceMotion = createCheckboxControl('모션 줄이기', options.settings.reduceMotion);
-  const audioEnabled = createCheckboxControl('오디오', options.settings.audioEnabled);
-  const hapticsEnabled = createCheckboxControl('진동/햅틱', options.settings.hapticsEnabled);
+  const profileInput = createTextControl('프로필 이름', options.settings.profileName);
+  const inputModeSelect = createSelectControl('기본 조준 방식', options.settings.preferredInput, [
+    ['auto', '자동'],
+    ['touch', '터치'],
+    ['desktop', '데스크톱'],
+  ]);
+  const reduceMotion = createCheckboxControl('카메라 흔들림 줄이기', options.settings.reduceMotion);
+  const audioEnabled = createCheckboxControl('사운드 켜기', options.settings.audioEnabled);
+  const hapticsEnabled = createCheckboxControl('진동/햅틱 켜기', options.settings.hapticsEnabled);
   const debugOverlay = createCheckboxControl('디버그 오버레이', options.settings.debugOverlay);
 
   form.append(

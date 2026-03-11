@@ -1,13 +1,12 @@
 import { getModeConfig, getResultBand, shouldUnlockRanking72 } from '../data/modes';
 import { getScoreRank, isPersonalBest } from '../data/records';
 import { DesktopAimInput } from '../input/DesktopAimInput';
-import { SensorAimInput } from '../input/SensorAimInput';
 import { TouchAimInput } from '../input/TouchAimInput';
-import type { AimInputAdapter } from '../input/types';
-import type { StoryTrigger } from '../story/types';
-import type { AppSettings, CalibrationProfile, MatchRecord, ModeId } from '../types';
+import type { AimInputAdapter, AimSnapshot } from '../input/types';
 import { AudioService } from '../services/AudioService';
 import { HapticsService } from '../services/HapticsService';
+import type { StoryTrigger } from '../story/types';
+import type { AppSettings, CalibrationProfile, MatchRecord, ModeId } from '../types';
 import { element, type ScreenController } from '../ui/dom';
 import { MatchHUD } from '../ui/MatchHUD';
 import { simulateArrowFlight } from './Ballistics';
@@ -26,6 +25,14 @@ interface MatchControllerOptions {
   onQuit: () => void;
   onStoryTrigger: (trigger: StoryTrigger) => Promise<void>;
   onComplete: (summary: MatchSummary) => void;
+}
+
+interface AimFrameState {
+  snapshot: AimSnapshot;
+  drawDuration: number;
+  tension: number;
+  releaseTiming: number;
+  effectiveStability: number;
 }
 
 export class MatchController implements ScreenController {
@@ -54,6 +61,7 @@ export class MatchController implements ScreenController {
   private seenTen = false;
   private seenBullseye = false;
   private readonly startedAt = Date.now();
+  private arrowPatternSeed = Math.random() * Math.PI * 2;
 
   constructor(private readonly options: MatchControllerOptions) {
     this.mode = getModeConfig(this.options.modeId);
@@ -67,7 +75,12 @@ export class MatchController implements ScreenController {
       onQuit: options.onQuit,
     });
 
-    this.pauseOverlay.innerHTML = `<div class="panel pause-card"><h2 class="section-title">일시정지</h2><p>숨을 가다듬고 다시 이어갈 수 있습니다.</p></div>`;
+    this.pauseOverlay.innerHTML = `
+      <div class="panel pause-card">
+        <h2 class="section-title">잠시 숨 고르기</h2>
+        <p class="muted-text">다시 누르면 바로 경기로 돌아갑니다.</p>
+      </div>
+    `;
     this.pauseOverlay.hidden = true;
     surface.append(this.sceneHost, this.hud.element, this.pauseOverlay);
     root.append(surface);
@@ -100,51 +113,25 @@ export class MatchController implements ScreenController {
   };
 
   private async initializeAdapter(): Promise<void> {
-    const preferred = this.options.calibration?.inputMode ?? guessInputMode(this.options.settings.preferredInput);
-    this.adapter = await this.buildAdapter(preferred);
-    this.adapter.setCalibration(this.options.calibration);
+    const preferred = resolveInputMode(this.options.settings.preferredInput);
+    this.adapter = preferred === 'desktop' ? new DesktopAimInput() : new TouchAimInput();
+    this.adapter.setCalibration(null);
     this.adapter.start();
     this.adapter.attachSurface(this.sceneHost);
   }
 
-  private async buildAdapter(mode: CalibrationProfile['inputMode']): Promise<AimInputAdapter> {
-    if (mode === 'sensor') {
-      const sensor = new SensorAimInput();
-      const permission = sensor.requestPermission ? await sensor.requestPermission() : 'granted';
-      if (permission === 'granted') {
-        return sensor;
-      }
-    }
-
-    if (mode === 'desktop' || supportsFinePointer()) {
-      return new DesktopAimInput();
-    }
-
-    return new TouchAimInput();
-  }
-
   private loop = () => {
-    const snapshot = this.adapter?.getSnapshot() ?? {
-      source: 'touch',
-      rawYaw: 0,
-      rawPitch: 0,
-      yaw: 0,
-      pitch: 0,
-      smoothedYaw: 0,
-      smoothedPitch: 0,
-      stability: 1,
-    };
-    const drawRatio = this.drawing ? Math.min((performance.now() - this.drawStartedAt) / 1300, 1) : 0;
+    const frame = this.composeAimFrame(performance.now());
 
     if (this.drawing) {
-      this.drawStabilityWindow.push(snapshot.stability);
+      this.drawStabilityWindow.push(frame.effectiveStability);
       if (this.drawStabilityWindow.length > 90) {
         this.drawStabilityWindow.shift();
       }
     }
 
     if (!this.paused) {
-      this.scene.frame(snapshot, drawRatio);
+      this.scene.frame(frame.snapshot, Math.min(frame.drawDuration / 0.85, 1));
     }
 
     this.hud.update({
@@ -153,10 +140,12 @@ export class MatchController implements ScreenController {
       totalScore: this.totalScore,
       xCount: this.xCount,
       windLabel: this.windSystem.describe(this.currentWind),
-      inputMode: snapshot.source,
+      inputMode: frame.snapshot.source,
       paused: this.paused,
       debugEnabled: this.options.settings.debugOverlay,
-      snapshot,
+      snapshot: frame.snapshot,
+      tension: frame.tension,
+      releaseTiming: frame.releaseTiming,
     });
 
     this.frameHandle = window.requestAnimationFrame(this.loop);
@@ -178,14 +167,13 @@ export class MatchController implements ScreenController {
       return;
     }
 
-    const snapshot = this.adapter.getSnapshot();
-    const drawDuration = (performance.now() - this.drawStartedAt) / 1000;
-    const stability = average(this.drawStabilityWindow.length > 0 ? this.drawStabilityWindow : [snapshot.stability]);
-    const releaseQuality = Math.max(0.15, 1 - Math.abs(drawDuration - 0.95) / 1.1) * 0.65 + stability * 0.35;
+    const frame = this.composeAimFrame(performance.now());
+    const stability = average(this.drawStabilityWindow.length > 0 ? this.drawStabilityWindow : [frame.effectiveStability]);
+    const releaseQuality = clamp(frame.releaseTiming * 0.74 + stability * 0.18 + pullBonus(frame.drawDuration) * 0.08, 0.15, 1);
     const shotPath = simulateArrowFlight({
-      aimYaw: snapshot.yaw,
-      aimPitch: snapshot.pitch,
-      drawDuration,
+      aimYaw: frame.snapshot.yaw,
+      aimPitch: frame.snapshot.pitch,
+      drawDuration: Math.max(0.35, frame.drawDuration),
       wind: this.currentWind,
       stability,
       releaseQuality,
@@ -229,6 +217,7 @@ export class MatchController implements ScreenController {
     }
 
     this.currentWind = this.windSystem.next(this.arrowIndex);
+    this.arrowPatternSeed = Math.random() * Math.PI * 2;
     this.animating = false;
   }
 
@@ -269,6 +258,58 @@ export class MatchController implements ScreenController {
     this.paused = !this.paused;
     this.pauseOverlay.hidden = !this.paused;
   }
+
+  private composeAimFrame(now: number): AimFrameState {
+    const fallback: AimSnapshot = {
+      source: 'touch',
+      rawYaw: 0,
+      rawPitch: 0,
+      yaw: 0,
+      pitch: 0,
+      smoothedYaw: 0,
+      smoothedPitch: 0,
+      stability: 1,
+    };
+    const base = this.adapter?.getSnapshot() ?? fallback;
+    const drawDuration = this.drawing ? (now - this.drawStartedAt) / 1000 : 0;
+    const tremor = this.computeTremor(now, drawDuration, base.stability);
+    const effectiveStability = clamp(base.stability * 0.58 + tremor.releaseTiming * 0.42 - tremor.tension * 0.06, 0, 1);
+
+    return {
+      snapshot: {
+        ...base,
+        yaw: base.yaw + tremor.offsetYaw,
+        pitch: base.pitch + tremor.offsetPitch,
+        smoothedYaw: base.smoothedYaw + tremor.offsetYaw,
+        smoothedPitch: base.smoothedPitch + tremor.offsetPitch,
+        stability: effectiveStability,
+      },
+      drawDuration,
+      tension: tremor.tension,
+      releaseTiming: tremor.releaseTiming,
+      effectiveStability,
+    };
+  }
+
+  private computeTremor(now: number, drawDuration: number, baseStability: number) {
+    if (!this.drawing) {
+      return { offsetYaw: 0, offsetPitch: 0, tension: 0, releaseTiming: 1 };
+    }
+
+    const time = now / 1000;
+    const tension = clamp(drawDuration / 1.18, 0, 1.12);
+    const amplitude = (0.012 + tension * 0.082) * (1.08 - baseStability * 0.24);
+    const offsetYaw =
+      Math.sin(time * 8.7 + this.arrowPatternSeed) * amplitude +
+      Math.sin(time * 13.3 + this.arrowPatternSeed * 0.5) * amplitude * 0.42;
+    const offsetPitch =
+      Math.cos(time * 7.9 + this.arrowPatternSeed * 1.7) * amplitude * 0.84 +
+      Math.cos(time * 12.2 + this.arrowPatternSeed * 0.8) * amplitude * 0.34;
+    const timingRadius = Math.max(amplitude * 1.8, 0.0001);
+    const releaseTiming = clamp(1 - Math.hypot(offsetYaw, offsetPitch) / timingRadius, 0, 1);
+
+    return { offsetYaw, offsetPitch, tension, releaseTiming };
+  }
 }
 
 function average(values: number[]): number {
@@ -278,8 +319,8 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function guessInputMode(preferred: AppSettings['preferredInput']): CalibrationProfile['inputMode'] {
-  if (preferred !== 'auto') {
+function resolveInputMode(preferred: AppSettings['preferredInput']): 'desktop' | 'touch' {
+  if (preferred === 'desktop' || preferred === 'touch') {
     return preferred;
   }
   return supportsFinePointer() ? 'desktop' : 'touch';
@@ -287,6 +328,14 @@ function guessInputMode(preferred: AppSettings['preferredInput']): CalibrationPr
 
 function supportsFinePointer(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
+}
+
+function pullBonus(drawDuration: number): number {
+  return clamp(drawDuration / 0.72, 0, 1);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function createRecordId(): string {
