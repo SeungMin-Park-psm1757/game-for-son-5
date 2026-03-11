@@ -616,6 +616,7 @@ a {
 }
 
 .hall-modal-card {
+  position: relative;
   width: min(1120px, 100%);
   max-height: min(88vh, 960px);
   overflow: auto;
@@ -623,11 +624,22 @@ a {
 }
 
 .hall-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  background: linear-gradient(180deg, rgba(255, 251, 244, 0.96), rgba(255, 251, 244, 0.78));
+  backdrop-filter: blur(14px);
+}
+
+.hall-close-button {
+  position: relative;
+  z-index: 4;
 }
 
 .hall-modal-title span {

@@ -179,7 +179,8 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
   const header = element('div', 'hall-modal-header');
   const titleBlock = element('div', 'hall-modal-title');
   titleBlock.innerHTML = `<span>Hall of Fame</span><h2>기록 세부 보기</h2>`;
-  const closeButton = element('button', 'topbar-icon-button', '닫기');
+  const closeButton = element('button', 'topbar-icon-button hall-close-button', '닫기');
+  closeButton.type = 'button';
   header.append(titleBlock, closeButton);
 
   const overview = element('div', 'hall-overview-row');
@@ -202,14 +203,20 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
   card.append(header, overview, grid);
   scrim.append(card);
 
-  const close = () => {
+  const close = (event?: Event) => {
+    event?.preventDefault();
+    event?.stopPropagation();
     scrim.hidden = true;
   };
 
+  card.addEventListener('click', (event) => {
+    event.stopPropagation();
+  });
   closeButton.addEventListener('click', close);
+  closeButton.addEventListener('pointerup', close);
   scrim.addEventListener('click', (event) => {
     if (event.target === scrim) {
-      close();
+      close(event);
     }
   });
 

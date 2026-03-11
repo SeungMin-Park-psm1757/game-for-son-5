@@ -36,6 +36,7 @@ describe('home screen interactions', () => {
     const actionButtons = [...screen.element.querySelectorAll<HTMLButtonElement>('.home-action-row button')];
     const settingsButton = screen.element.querySelector<HTMLButtonElement>('.home-topbar .topbar-icon-button');
     const hallModal = screen.element.querySelector<HTMLElement>('.hall-modal-scrim');
+    const hallCloseButton = screen.element.querySelector<HTMLButtonElement>('.hall-close-button');
 
     actionButtons[0].click();
     actionButtons[1].click();
@@ -46,5 +47,8 @@ describe('home screen interactions', () => {
     expect(onPractice).toHaveBeenCalledTimes(1);
     expect(onSettings).toHaveBeenCalledTimes(1);
     expect(hallModal?.hidden).toBe(false);
+
+    hallCloseButton?.click();
+    expect(hallModal?.hidden).toBe(true);
   });
 });
