@@ -1,0 +1,66 @@
+# Family Archery 3D
+
+Family Archery 3D is a mobile-first 3D web archery game with a warm family cheering tone. The first screen is always the Hall of Fame, and the core loop is built around quick sync aiming, short repeatable matches, and family story events that cheer the player on instead of punishing mistakes.
+
+## Game Overview
+- Hall of Fame home screen with Top 5 score, Top 5 X-count, recent matches, and PB comparison.
+- Full calibration on first setup, then 2 to 3 second quick sync before later matches.
+- Separate sensor, touch, and desktop input adapters.
+- Low-poly 3D range with hold-to-draw, release-to-shoot, wind drift, and ring scoring.
+- Practice 6 arrows and Trial 12 arrows are playable now.
+- Ranking 72 arrows is already scaffolded in config and unlock flow.
+- Data-driven family events support toast, overlay dialog, and full story scene delivery.
+
+## Play Link
+- GitHub Pages: https://seungmin-park-psm1757.github.io/game-for-son-5/
+- Repository: https://github.com/SeungMin-Park-psm1757/game-for-son-5
+- If the page is not live yet, wait for the Pages workflow to finish and make sure GitHub Pages is enabled in the repository settings.
+
+## Controls
+- Mobile sensor mode: tilt to aim, hold the draw button, release to shoot.
+- Touch fallback: drag on the range to aim, hold the draw button, release to shoot.
+- Desktop: move the mouse to aim, hold the draw button or `Space`, release to shoot.
+- Recenter during a match: HUD `재중앙` button or `R`.
+- Pause during a match: HUD `일시정지`.
+
+## Development
+```bash
+npm install
+npm run dev
+```
+
+## Build And Test
+```bash
+npm run build
+npm run test
+```
+
+## GitHub Pages Deployment
+1. Push the repository to GitHub.
+2. Enable GitHub Pages with GitHub Actions.
+3. The included workflow at `.github/workflows/deploy.yml` builds `dist/` and deploys it.
+4. `vite.config.ts` uses a relative `base`, so static hosting works without repo-name edits.
+
+## Project Structure
+```text
+src/
+  app/           routing and app orchestration
+  data/          modes, portraits, record sorting helpers
+  game/          three.js range, ballistics, scoring, match controller
+  input/         sensor/touch/desktop aim and calibration math
+  persistence/   localStorage keys and hydration
+  services/      audio and haptic helpers
+  story/         event data, selection engine, story overlay
+  ui/            home, calibration, HUD, result, settings, reset modal
+  tests/         scoring, records, calibration unit tests
+```
+
+## Docs
+- `docs/calibration.md`
+- `docs/hall-of-fame.md`
+- `docs/story-events.md`
+
+## Current Gaps
+- Real mobile gyroscope behavior still needs hands-on device testing.
+- Portrait rendering currently uses stylized placeholders instead of reused legacy images.
+- `three-vendor` is still the biggest production chunk, so there is room for deeper asset/code trimming later.
