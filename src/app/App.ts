@@ -11,6 +11,7 @@ import { createResultScreen } from '../ui/ResultScreen';
 import { createSettingsScreen } from '../ui/SettingsScreen';
 import { clearNode, type ScreenController } from '../ui/dom';
 import type { MatchSummary } from '../game/types';
+import { MatchController } from '../game/MatchController';
 import type { StoryTrigger } from '../story/types';
 import type { AppStorageSnapshot, ModeId } from '../types';
 
@@ -123,7 +124,6 @@ export class App {
 
     if (route.name === 'match') {
       const mode = parseModeId(route.params.get('mode'));
-      const { MatchController } = await import('../game/MatchController');
       const controller = new MatchController({
         modeId: mode,
         calibration: this.snapshot.calibration,
