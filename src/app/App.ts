@@ -33,6 +33,7 @@ export class App {
     shell.append(this.screenHost, this.overlayHost);
     this.root.append(shell);
 
+    this.normalizeMobileDefaults();
     this.syncServices();
     window.addEventListener('hashchange', () => void this.renderCurrentRoute());
     if (!window.location.hash) {
@@ -44,6 +45,24 @@ export class App {
   private syncServices(): void {
     this.audio.setEnabled(this.snapshot.settings.audioEnabled);
     this.haptics.setEnabled(this.snapshot.settings.hapticsEnabled);
+  }
+
+  private normalizeMobileDefaults(): void {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches &&
+      this.snapshot.settings.debugOverlay
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+        settings: {
+          ...this.snapshot.settings,
+          debugOverlay: false,
+        },
+      };
+      saveSettings(this.snapshot.settings);
+    }
   }
 
   private async renderCurrentRoute(): Promise<void> {

@@ -2,8 +2,8 @@ import type { CalibrationProfile } from '../types';
 import { AimFilter } from './AimFilter';
 import type { AimInputAdapter, AimSnapshot, RawAimSample } from './types';
 
-const TOUCH_YAW_RANGE = 1.22;
-const TOUCH_PITCH_RANGE = 1.05;
+const TOUCH_YAW_RANGE = 0.62;
+const TOUCH_PITCH_RANGE = 0.5;
 
 export class TouchAimInput implements AimInputAdapter {
   public readonly mode = 'touch' as const;

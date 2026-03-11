@@ -20,8 +20,8 @@ export class DesktopAimInput implements AimInputAdapter {
 
     this.previousRaw = this.raw;
     this.raw = {
-      yaw: normalizedX * 1.18,
-      pitch: normalizedY * -1.02,
+      yaw: normalizedX * 0.68,
+      pitch: normalizedY * -0.58,
       timestamp: Date.now(),
     };
   };

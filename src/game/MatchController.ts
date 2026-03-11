@@ -130,8 +130,10 @@ export class MatchController implements ScreenController {
       }
     }
 
+    const drawVisualRatio = Math.min(frame.drawDuration / 0.9, 1);
+    const scopeRatio = this.drawing ? Math.min(frame.drawDuration / 0.35, 1) : 0;
     if (!this.paused) {
-      this.scene.frame(frame.snapshot, Math.min(frame.drawDuration / 0.85, 1));
+      this.scene.frame(frame.snapshot, drawVisualRatio, scopeRatio);
     }
 
     this.hud.update({
@@ -140,12 +142,12 @@ export class MatchController implements ScreenController {
       totalScore: this.totalScore,
       xCount: this.xCount,
       windLabel: this.windSystem.describe(this.currentWind),
-      inputMode: frame.snapshot.source,
       paused: this.paused,
       debugEnabled: this.options.settings.debugOverlay,
       snapshot: frame.snapshot,
       tension: frame.tension,
       releaseTiming: frame.releaseTiming,
+      drawing: this.drawing,
     });
 
     this.frameHandle = window.requestAnimationFrame(this.loop);
@@ -273,7 +275,7 @@ export class MatchController implements ScreenController {
     const base = this.adapter?.getSnapshot() ?? fallback;
     const drawDuration = this.drawing ? (now - this.drawStartedAt) / 1000 : 0;
     const tremor = this.computeTremor(now, drawDuration, base.stability);
-    const effectiveStability = clamp(base.stability * 0.58 + tremor.releaseTiming * 0.42 - tremor.tension * 0.06, 0, 1);
+    const effectiveStability = clamp(base.stability * 0.7 + tremor.releaseTiming * 0.3 - tremor.tension * 0.035, 0, 1);
 
     return {
       snapshot: {
@@ -297,8 +299,8 @@ export class MatchController implements ScreenController {
     }
 
     const time = now / 1000;
-    const tension = clamp(drawDuration / 1.18, 0, 1.12);
-    const amplitude = (0.012 + tension * 0.082) * (1.08 - baseStability * 0.24);
+    const tension = clamp(drawDuration / 1.28, 0, 1.08);
+    const amplitude = (0.005 + tension * 0.03) * (1.02 - baseStability * 0.18);
     const offsetYaw =
       Math.sin(time * 8.7 + this.arrowPatternSeed) * amplitude +
       Math.sin(time * 13.3 + this.arrowPatternSeed * 0.5) * amplitude * 0.42;

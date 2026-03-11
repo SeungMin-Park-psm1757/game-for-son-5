@@ -19,7 +19,7 @@ export function createDefaultSettings(): AppSettings {
     reduceMotion: false,
     audioEnabled: true,
     hapticsEnabled: true,
-    debugOverlay: true,
+    debugOverlay: false,
     dominantHand: 'right',
   };
 }

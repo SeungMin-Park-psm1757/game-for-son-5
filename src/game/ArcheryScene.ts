@@ -44,6 +44,7 @@ export class ArcheryScene {
   private readonly impactGroup = new Group();
   private readonly stuckArrows: Group[] = [];
   private activeShot: ActiveShot | null = null;
+  private currentFov = 65;
 
   constructor(private readonly host: HTMLElement, private readonly reduceMotion: boolean) {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -55,8 +56,8 @@ export class ArcheryScene {
     window.addEventListener('resize', this.resize);
   }
 
-  public frame(snapshot: AimSnapshot, drawRatio: number): void {
-    this.updateCamera(snapshot);
+  public frame(snapshot: AimSnapshot, drawRatio: number, scopeRatio: number): void {
+    this.updateCamera(snapshot, scopeRatio);
     this.updateBow(drawRatio);
     this.updateShot();
     this.renderer.render(this.scene, this.camera);
@@ -169,14 +170,18 @@ export class ArcheryScene {
     this.bowGroup.add(bowLeft, bowRight, this.stringLine, this.previewArrow);
   }
 
-  private updateCamera(snapshot: AimSnapshot): void {
+  private updateCamera(snapshot: AimSnapshot, scopeRatio: number): void {
     const target = new Vector3(
-      Math.sin(snapshot.yaw * 0.12) * TARGET_DISTANCE * 0.9,
-      TARGET_CENTER_Y + Math.sin(snapshot.pitch * 0.08) * 5.2,
+      Math.sin(snapshot.yaw * 0.055) * TARGET_DISTANCE * 0.42,
+      TARGET_CENTER_Y + Math.sin(snapshot.pitch * 0.06) * 3.2,
       -TARGET_DISTANCE,
     );
+    const targetFov = 65 - scopeRatio * 32;
+    this.currentFov += (targetFov - this.currentFov) * 0.22;
+    this.camera.fov = this.currentFov;
+    this.camera.updateProjectionMatrix();
     this.camera.lookAt(target);
-    this.bowGroup.rotation.z = snapshot.yaw * -0.06;
+    this.bowGroup.rotation.z = snapshot.yaw * -0.035;
   }
 
   private updateBow(drawRatio: number): void {
