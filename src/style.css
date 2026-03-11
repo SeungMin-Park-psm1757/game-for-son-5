@@ -47,6 +47,8 @@ select {
 
 button {
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:disabled {
@@ -310,6 +312,7 @@ a {
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(36, 122, 109, 0.08), rgba(36, 122, 109, 0));
+  pointer-events: none;
 }
 
 .home-hero-copy,
@@ -433,6 +436,7 @@ a {
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(circle, rgba(217, 119, 6, 0.18), rgba(217, 119, 6, 0) 70%);
+  pointer-events: none;
 }
 
 .target-rings,
@@ -441,6 +445,7 @@ a {
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
+  pointer-events: none;
 }
 
 .target-rings {
@@ -503,6 +508,7 @@ a {
   border-radius: 999px;
   background: linear-gradient(90deg, #6b4f32, #c89a5b 70%, #312e2c 100%);
   box-shadow: 0 10px 24px rgba(49, 46, 44, 0.18);
+  pointer-events: none;
 }
 
 .hero-arrow::before,

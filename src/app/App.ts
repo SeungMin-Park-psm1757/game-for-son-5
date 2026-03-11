@@ -145,9 +145,9 @@ export class App {
   }
 
   private async beginMode(mode: ModeId): Promise<void> {
-    await this.audio.resume();
-    await this.triggerStory({ type: 'first_launch' });
     this.navigate(buildRoute('match', { mode }));
+    void this.audio.resume();
+    void this.triggerStory({ type: 'first_launch' });
   }
 
   private async handleMatchComplete(summary: MatchSummary): Promise<void> {

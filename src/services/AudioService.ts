@@ -7,21 +7,25 @@ export class AudioService {
   }
 
   public async resume(): Promise<void> {
-    if (!this.enabled || typeof window === 'undefined') {
-      return;
-    }
+    try {
+      if (!this.enabled || typeof window === 'undefined') {
+        return;
+      }
 
-    const AudioContextCtor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextCtor) {
-      return;
-    }
+      const AudioContextCtor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) {
+        return;
+      }
 
-    if (!this.audioContext) {
-      this.audioContext = new AudioContextCtor();
-    }
+      if (!this.audioContext) {
+        this.audioContext = new AudioContextCtor();
+      }
 
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+    } catch {
+      this.audioContext = null;
     }
   }
 
