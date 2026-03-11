@@ -55,7 +55,7 @@ export function averageSamples(samples: RawAimSample[]): RawAimSample {
   return {
     yaw: total.yaw / samples.length,
     pitch: total.pitch / samples.length,
-    timestamp: samples.at(-1)?.timestamp ?? Date.now(),
+    timestamp: samples.length > 0 ? samples[samples.length - 1].timestamp : Date.now(),
   };
 }
 

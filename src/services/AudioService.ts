@@ -11,8 +11,13 @@ export class AudioService {
       return;
     }
 
+    const AudioContextCtor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) {
+      return;
+    }
+
     if (!this.audioContext) {
-      this.audioContext = new AudioContext();
+      this.audioContext = new AudioContextCtor();
     }
 
     if (this.audioContext.state === 'suspended') {

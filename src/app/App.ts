@@ -38,9 +38,8 @@ export class App {
     window.addEventListener('hashchange', () => void this.renderCurrentRoute());
     if (!window.location.hash) {
       window.location.hash = buildRoute('home');
-    } else {
-      void this.renderCurrentRoute();
     }
+    void this.renderCurrentRoute();
   }
 
   private syncServices(): void {

@@ -116,7 +116,7 @@ export class MatchController implements ScreenController {
       }
     }
 
-    if (mode === 'desktop' || window.matchMedia('(pointer: fine)').matches) {
+    if (mode === 'desktop' || supportsFinePointer()) {
       return new DesktopAimInput();
     }
 
@@ -235,7 +235,7 @@ export class MatchController implements ScreenController {
   private finishMatch(): void {
     const resultBand = getResultBand(this.mode.id, this.totalScore);
     const record: MatchRecord = {
-      id: crypto.randomUUID(),
+      id: createRecordId(),
       mode: this.mode.id,
       totalScore: this.totalScore,
       arrowScores: [...this.arrowScores],
@@ -282,5 +282,17 @@ function guessInputMode(preferred: AppSettings['preferredInput']): CalibrationPr
   if (preferred !== 'auto') {
     return preferred;
   }
-  return window.matchMedia('(pointer: fine)').matches ? 'desktop' : 'touch';
+  return supportsFinePointer() ? 'desktop' : 'touch';
+}
+
+function supportsFinePointer(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
+}
+
+function createRecordId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `record-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }

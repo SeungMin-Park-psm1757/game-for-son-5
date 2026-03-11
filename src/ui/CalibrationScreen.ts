@@ -316,7 +316,7 @@ function guessInputMode(preferredInput: AppSettings['preferredInput']): InputMod
   if (preferredInput !== 'auto') {
     return preferredInput;
   }
-  if (window.matchMedia('(pointer: fine)').matches) {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches) {
     return 'desktop';
   }
   return 'touch';
