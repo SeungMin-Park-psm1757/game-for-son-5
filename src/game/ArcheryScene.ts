@@ -264,19 +264,20 @@ export class ArcheryScene {
     this.scene.add(targetFrame);
 
     const backdrop = new Mesh(
-      new PlaneGeometry(42, 13),
+      new PlaneGeometry(48, 16.5),
       new MeshStandardMaterial({ map: this.createBackdropTexture(), side: DoubleSide }),
     );
-    backdrop.position.set(0, 5.4, -38.4);
+    backdrop.position.set(0, 6.7, -38.4);
     this.scene.add(backdrop);
 
     const eventBanner = new Mesh(
       new PlaneGeometry(6.8, 1.45),
       new MeshStandardMaterial({ map: this.createBannerTexture(this.theme.banner, this.theme.accent), side: DoubleSide }),
     );
-    eventBanner.position.set(0, 5.05, -24.1);
+    eventBanner.position.set(0, 6.08, -24.1);
     this.scene.add(eventBanner);
     this.addCeremonyGate();
+    this.addSkyFestivalRig();
 
     this.addFamilyCheerStands();
 
@@ -388,6 +389,38 @@ export class ArcheryScene {
     rightPlate.position.x = 5.06;
 
     this.scene.add(leftPost, rightPost, topBeam, trimBeam, leftPlate, rightPlate);
+  }
+
+  private addSkyFestivalRig(): void {
+    const ropeMaterial = new MeshStandardMaterial({ color: '#f7efe0', roughness: 0.62 });
+    const pennantColors = [this.theme.accent, this.theme.accentAlt, '#f7d48f', '#247a6d'];
+    const rows = [
+      { y: 7.15, z: -17.4, width: 12.8, pennants: 15, rotationZ: 0.02 },
+      { y: 8.05, z: -26.8, width: 15.6, pennants: 19, rotationZ: -0.018 },
+    ];
+
+    rows.forEach((row, rowIndex) => {
+      const rope = new Mesh(new BoxGeometry(row.width, 0.03, 0.03), ropeMaterial);
+      rope.position.set(0, row.y, row.z);
+      rope.rotation.z = row.rotationZ;
+      this.scene.add(rope);
+
+      const spacing = row.width / (row.pennants - 1);
+      for (let index = 0; index < row.pennants; index += 1) {
+        const pennant = new Mesh(
+          new PlaneGeometry(0.34, 0.62),
+          new MeshStandardMaterial({
+            color: pennantColors[(index + rowIndex) % pennantColors.length],
+            side: DoubleSide,
+            roughness: 0.56,
+          }),
+        );
+        pennant.position.set(-row.width * 0.5 + spacing * index, row.y - 0.3 - (index % 2) * 0.05, row.z);
+        pennant.rotation.x = -0.08;
+        pennant.rotation.z = (index % 2 === 0 ? 1 : -1) * 0.06;
+        this.scene.add(pennant);
+      }
+    });
   }
 
   private addFamilyCheerStands(): void {
@@ -758,11 +791,59 @@ export class ArcheryScene {
     context.arc(canvas.width * 0.18, canvas.height * 0.18, 196, 0, Math.PI * 2);
     context.fill();
 
+    const paintCloud = (x: number, y: number, width: number, height: number, alpha: number) => {
+      context.save();
+      context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      context.beginPath();
+      context.ellipse(x, y, width, height, 0, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.ellipse(x - width * 0.34, y + 12, width * 0.58, height * 0.72, 0, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.ellipse(x + width * 0.3, y + 8, width * 0.62, height * 0.78, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    };
+
+    paintCloud(canvas.width * 0.24, 184, 162, 44, 0.18);
+    paintCloud(canvas.width * 0.52, 146, 176, 48, 0.12);
+    paintCloud(canvas.width * 0.78, 216, 212, 56, 0.16);
+
     const haze = context.createLinearGradient(0, 260, 0, 720);
     haze.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
     haze.addColorStop(1, 'rgba(255, 255, 255, 0)');
     context.fillStyle = haze;
     context.fillRect(0, 240, canvas.width, 460);
+
+    context.fillStyle = 'rgba(255, 248, 235, 0.14)';
+    context.beginPath();
+    context.moveTo(0, 360);
+    context.lineTo(640, 262);
+    context.lineTo(810, 610);
+    context.lineTo(0, 820);
+    context.closePath();
+    context.fill();
+
+    context.beginPath();
+    context.moveTo(canvas.width, 340);
+    context.lineTo(canvas.width - 660, 286);
+    context.lineTo(canvas.width - 814, 624);
+    context.lineTo(canvas.width, 792);
+    context.closePath();
+    context.fill();
+
+    context.strokeStyle = 'rgba(255, 250, 238, 0.7)';
+    context.lineWidth = 8;
+    context.beginPath();
+    context.moveTo(280, 248);
+    context.quadraticCurveTo(canvas.width * 0.5, 334, canvas.width - 280, 246);
+    context.stroke();
+
+    context.beginPath();
+    context.moveTo(120, 322);
+    context.quadraticCurveTo(canvas.width * 0.5, 420, canvas.width - 120, 322);
+    context.stroke();
 
     context.fillStyle = 'rgba(83, 111, 134, 0.14)';
     context.beginPath();

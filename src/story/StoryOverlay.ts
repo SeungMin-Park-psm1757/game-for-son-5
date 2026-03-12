@@ -119,8 +119,8 @@ export class StoryOverlay {
         resolve();
       });
 
-      scrim.addEventListener('click', (eventTarget) => {
-        if (eventTarget.target === scrim) {
+      scrim.addEventListener('click', (clickEvent) => {
+        if (clickEvent.target === scrim) {
           next.click();
         }
       });

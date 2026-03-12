@@ -18,9 +18,14 @@ interface HomeOptions {
 
 export function createHomeHallOfFame(options: HomeOptions): ScreenController {
   const screen = element('section', 'screen home-screen home-stage-screen');
+  const setPanelOpen = (isOpen: boolean) => {
+    screen.dataset.panelOpen = isOpen ? 'true' : 'false';
+  };
+  setPanelOpen(false);
+
   const stage = createStage(options);
-  const startSheet = createStartSheet(options);
-  const hallModal = createHallModal(options.records);
+  const startSheet = createStartSheet(options, setPanelOpen);
+  const hallModal = createHallModal(options.records, setPanelOpen);
   const resetButton = createResetButton(options.onResetHoldComplete);
 
   stage.startButton.addEventListener('click', startSheet.open);
@@ -32,6 +37,7 @@ export function createHomeHallOfFame(options: HomeOptions): ScreenController {
   return {
     element: screen,
     destroy: () => {
+      setPanelOpen(false);
       resetButton.remove();
     },
   };
@@ -71,9 +77,7 @@ function createStage(options: HomeOptions): {
   header.innerHTML = '<h1 class="home-stage-title">정우의 국궁 올림픽</h1>';
 
   const main = element('div', 'home-stage-main');
-  const supportPanel = createSupportPanel(options.supportSession);
-  const statusRibbon = createStatusRibbon(options.records);
-  main.append(supportPanel, statusRibbon);
+  main.append(createSupportPanel(options.supportSession), createStatusRibbon(options.records));
 
   const dock = element('nav', 'home-menu-dock');
   const startButton = element('button', 'primary-button dock-button', '게임 시작');
@@ -81,7 +85,10 @@ function createStage(options: HomeOptions): {
   const settingsButton = element('button', 'secondary-button dock-button', '설정');
   dock.append(startButton, hallButton, settingsButton);
 
-  shell.append(atmosphere, header, main, dock);
+  const deck = element('div', 'home-stage-deck');
+  deck.append(main, dock);
+
+  shell.append(atmosphere, header, deck);
   return { element: shell, startButton, hallButton, settingsButton };
 }
 
@@ -131,9 +138,7 @@ function createSupportPanel(session: HomeSupportSelection[]): HTMLElement {
   });
 
   const initial = safeSession.find((entry) => entry.portraitKey === activeKey) ?? safeSession[0];
-  if (initial) {
-    renderMessage(initial);
-  }
+  renderMessage(initial);
 
   panel.append(messageCard, castGrid);
   return panel;
@@ -154,7 +159,7 @@ function createStatusRibbon(records: MatchRecord[]): HTMLElement {
   return ribbon;
 }
 
-function createStartSheet(options: HomeOptions): { element: HTMLElement; open: () => void } {
+function createStartSheet(options: HomeOptions, setPanelOpen: (isOpen: boolean) => void): { element: HTMLElement; open: () => void } {
   const scrim = element('div', 'modal-scrim start-sheet-scrim');
   scrim.hidden = true;
   const sheet = element('div', 'start-sheet-card');
@@ -168,18 +173,21 @@ function createStartSheet(options: HomeOptions): { element: HTMLElement; open: (
   const closeButton = element('button', 'topbar-icon-button', '닫기');
   header.append(closeButton);
 
+  const close = () => {
+    scrim.hidden = true;
+    setPanelOpen(false);
+  };
+
   const list = element('div', 'start-sheet-list');
   list.append(
-    createModeCard('practice6', options, getModeHelperText('practice6', options.unlockedModes)),
-    ...CHAPTER_MODE_IDS.map((modeId) => createModeCard(modeId, options, getModeHelperText(modeId, options.unlockedModes))),
+    createModeCard('practice6', options, getModeHelperText('practice6', options.unlockedModes), close),
+    ...CHAPTER_MODE_IDS.map((modeId) =>
+      createModeCard(modeId, options, getModeHelperText(modeId, options.unlockedModes), close),
+    ),
   );
 
   sheet.append(header, list);
   scrim.append(sheet);
-
-  const close = () => {
-    scrim.hidden = true;
-  };
 
   closeButton.addEventListener('click', close);
   scrim.addEventListener('click', (event) => {
@@ -191,12 +199,13 @@ function createStartSheet(options: HomeOptions): { element: HTMLElement; open: (
   return {
     element: scrim,
     open: () => {
+      setPanelOpen(true);
       scrim.hidden = false;
     },
   };
 }
 
-function createModeCard(modeId: ModeId, options: HomeOptions, helperText: string): HTMLElement {
+function createModeCard(modeId: ModeId, options: HomeOptions, helperText: string, onStart: () => void): HTMLElement {
   const mode = getModeConfig(modeId);
   const card = element('button', 'start-mode-card');
   const unlocked = !mode.isChallenge || options.unlockedModes.includes(modeId);
@@ -213,6 +222,7 @@ function createModeCard(modeId: ModeId, options: HomeOptions, helperText: string
 
   card.addEventListener('click', () => {
     if (unlocked) {
+      onStart();
       options.onStartMode(modeId);
     }
   });
@@ -231,7 +241,7 @@ function getModeHelperText(modeId: ModeId, unlockedModes: ModeId[]): string {
   return mode.description;
 }
 
-function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: () => void } {
+function createHallModal(records: MatchRecord[], setPanelOpen: (isOpen: boolean) => void): { element: HTMLElement; open: () => void } {
   const scrim = element('div', 'hall-modal-scrim');
   scrim.hidden = true;
   const card = element('div', 'hall-modal-card');
@@ -263,6 +273,7 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
 
   const close = () => {
     scrim.hidden = true;
+    setPanelOpen(false);
   };
 
   closeButton.addEventListener('click', close);
@@ -275,6 +286,7 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
   return {
     element: scrim,
     open: () => {
+      setPanelOpen(true);
       scrim.hidden = false;
     },
   };

@@ -12,7 +12,7 @@ describe('story overlay scene layout', () => {
       delivery: 'scene',
       priority: 1,
       trigger: { type: 'first_launch' },
-      lines: [{ speaker: '아빠', portraitKey: 'char_dad', text: '가족 응원으로 첫 장면을 연다.' }],
+      lines: [{ speaker: '아빠', portraitKey: 'char_dad', text: '가족의 응원으로 첫 발을 시작해보자.' }],
     });
 
     await Promise.resolve();

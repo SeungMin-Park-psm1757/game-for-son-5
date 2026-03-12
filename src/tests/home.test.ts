@@ -20,9 +20,9 @@ describe('home screen interactions', () => {
       },
       unlockedModes: ['practice6', 'chapterKorea9'],
       supportSession: [
-        { speaker: '아빠', portraitKey: 'char_dad', text: '한 발씩 차분하게 가보자.' },
+        { speaker: '아빠', portraitKey: 'char_dad', text: '첫 발부터 차분하게 가보자.' },
         { speaker: '엄마', portraitKey: 'char_mom', text: '호흡부터 맞추면 괜찮아.' },
-        { speaker: '세연', portraitKey: 'char_seyeon', text: '오늘은 내가 제일 크게 응원할게!' },
+        { speaker: '세연', portraitKey: 'char_seyeon', text: '오늘도 제일 크게 응원할게!' },
       ],
       onStartMode,
       onSettings,
@@ -38,11 +38,14 @@ describe('home screen interactions', () => {
     const supportButtons = [...screen.element.querySelectorAll<HTMLButtonElement>('.family-support-card')];
 
     expect(screen.element.textContent).toContain('정우의 국궁 올림픽');
+    expect(screen.element.getAttribute('data-panel-open')).toBe('false');
+
     supportButtons[1].click();
     expect(screen.element.textContent).toContain('호흡부터 맞추면 괜찮아.');
 
     dockButtons[0].click();
     expect(startSheet?.hidden).toBe(false);
+    expect(screen.element.getAttribute('data-panel-open')).toBe('true');
 
     const practiceButton = screen.element.querySelector<HTMLButtonElement>('.start-mode-card');
     practiceButton?.click();
@@ -53,8 +56,10 @@ describe('home screen interactions', () => {
     expect(onStartMode).toHaveBeenCalledWith('practice6');
     expect(onSettings).toHaveBeenCalledTimes(1);
     expect(hallModal?.hidden).toBe(false);
+    expect(screen.element.getAttribute('data-panel-open')).toBe('true');
 
     hallCloseButton?.click();
     expect(hallModal?.hidden).toBe(true);
+    expect(screen.element.getAttribute('data-panel-open')).toBe('false');
   });
 });
