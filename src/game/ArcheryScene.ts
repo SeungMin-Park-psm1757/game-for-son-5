@@ -24,12 +24,80 @@ import {
 } from 'three';
 import { resolveAimPoint, TARGET_CENTER_Y, TARGET_DISTANCE } from './Ballistics';
 import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
+import type { ArrowTheme } from './playerProgress';
 import type { AimSnapshot } from '../input/types';
+import type { ChapterId } from '../types';
 
 const ARROW_SHAFT_LENGTH = 1.04;
 const ARROW_HEAD_LENGTH = 0.15;
 const ARROW_TIP_OFFSET = ARROW_SHAFT_LENGTH * 0.5 + ARROW_HEAD_LENGTH;
 const CROWD_COLORS = ['#d9685c', '#f0c05f', '#5ea3d8', '#7e87bf', '#6cb08b', '#d77f91'];
+const DEFAULT_ARROW_THEME: ArrowTheme = {
+  tip: '#30343f',
+  wrap: '#8b5e3c',
+  featherA: '#d9485a',
+  featherB: '#f0b13c',
+  featherC: '#2f8f83',
+};
+
+interface SceneTheme {
+  sky: string;
+  ground: string;
+  lane: string;
+  boundary: string;
+  accent: string;
+  accentSoft: string;
+  accentAlt: string;
+  banner: string;
+  backdropLabel: string;
+}
+
+const CHAPTER_THEMES: Record<ChapterId, SceneTheme> = {
+  practice: {
+    sky: '#cfe2f4',
+    ground: '#8dbd70',
+    lane: '#dfe7d1',
+    boundary: '#f6efe1',
+    accent: '#b76506',
+    accentSoft: '#f7ddac',
+    accentAlt: '#247a6d',
+    banner: '훈련장',
+    backdropLabel: 'PRACTICE FIELD',
+  },
+  korea: {
+    sky: '#c7def5',
+    ground: '#8bb669',
+    lane: '#e3ead6',
+    boundary: '#f5efe2',
+    accent: '#c45c2d',
+    accentSoft: '#f6d8b2',
+    accentAlt: '#1f6f66',
+    banner: '서울 기록전',
+    backdropLabel: 'SEOUL STAGE',
+  },
+  japan: {
+    sky: '#d4e0f1',
+    ground: '#89b46a',
+    lane: '#e6ead8',
+    boundary: '#f4eee1',
+    accent: '#b63e3c',
+    accentSoft: '#f4c8c1',
+    accentAlt: '#5c677d',
+    banner: '도쿄 기록전',
+    backdropLabel: 'TOKYO STAGE',
+  },
+  usa: {
+    sky: '#d2e5fa',
+    ground: '#86b265',
+    lane: '#e5eadb',
+    boundary: '#f2ece0',
+    accent: '#1d4ed8',
+    accentSoft: '#c7d8fb',
+    accentAlt: '#d97706',
+    banner: 'LA 기록전',
+    backdropLabel: 'LOS ANGELES FINAL',
+  },
+};
 
 interface ActiveShot {
   path: Vector3[];
@@ -55,10 +123,12 @@ export class ArcheryScene {
   private readonly camera = new PerspectiveCamera(64, 1, 0.1, 200);
   private readonly renderer = new WebGLRenderer({ antialias: true, alpha: true });
   private readonly textureLoader = new TextureLoader();
+  private readonly theme: SceneTheme;
   private readonly resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.resize()) : null;
   private readonly bowGroup = new Group();
   private readonly bowHand = this.createBowHand();
   private readonly drawHand = this.createDrawHand();
+  private currentArrowTheme: ArrowTheme = DEFAULT_ARROW_THEME;
   private readonly previewArrow = this.createArrow(false);
   private readonly stringLine = this.createString();
   private readonly targetPlane = new Mesh(
@@ -71,12 +141,17 @@ export class ArcheryScene {
   private activeShot: ActiveShot | null = null;
   private currentFov = 64;
 
-  constructor(private readonly host: HTMLElement, private readonly reduceMotion: boolean) {
+  constructor(private readonly host: HTMLElement, private readonly reduceMotion: boolean, chapterId: ChapterId, arrowTheme?: ArrowTheme) {
+    this.theme = CHAPTER_THEMES[chapterId];
+    if (arrowTheme) {
+      this.currentArrowTheme = arrowTheme;
+    }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.4));
     this.renderer.setSize(host.clientWidth, host.clientHeight);
     this.renderer.outputColorSpace = 'srgb';
     this.host.append(this.renderer.domElement);
     this.buildWorld();
+    this.setArrowTheme(this.currentArrowTheme);
     this.resize();
     window.requestAnimationFrame(this.resize);
     this.resizeObserver?.observe(this.host);
@@ -112,6 +187,11 @@ export class ArcheryScene {
     });
   }
 
+  public setArrowTheme(theme: ArrowTheme): void {
+    this.currentArrowTheme = theme;
+    this.applyArrowTheme(this.previewArrow, theme);
+  }
+
   public destroy(): void {
     window.removeEventListener('resize', this.resize);
     this.resizeObserver?.disconnect();
@@ -128,7 +208,7 @@ export class ArcheryScene {
   };
 
   private buildWorld(): void {
-    this.scene.background = new Color('#c8def3');
+    this.scene.background = new Color(this.theme.sky);
     this.scene.add(new AmbientLight('#fff4dd', 1.55));
 
     const sun = new DirectionalLight('#fff8e8', 2.7);
@@ -137,7 +217,7 @@ export class ArcheryScene {
 
     const ground = new Mesh(
       new PlaneGeometry(80, 96),
-      new MeshStandardMaterial({ color: '#8dbd70' }),
+      new MeshStandardMaterial({ color: this.theme.ground }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, 0, -28);
@@ -145,7 +225,7 @@ export class ArcheryScene {
 
     const lane = new Mesh(
       new PlaneGeometry(8.2, TARGET_DISTANCE + 18),
-      new MeshStandardMaterial({ color: '#dfe7d1' }),
+      new MeshStandardMaterial({ color: this.theme.lane }),
     );
     lane.rotation.x = -Math.PI / 2;
     lane.position.set(0, 0.02, -TARGET_DISTANCE * 0.5 - 4.2);
@@ -154,7 +234,7 @@ export class ArcheryScene {
     for (const side of [-1, 1] as const) {
       const boundary = new Mesh(
         new BoxGeometry(0.22, 0.18, TARGET_DISTANCE + 18),
-        new MeshStandardMaterial({ color: '#f6efe1' }),
+        new MeshStandardMaterial({ color: this.theme.boundary }),
       );
       boundary.position.set(side * 4.2, 0.1, -TARGET_DISTANCE * 0.5 - 4.2);
       this.scene.add(boundary);
@@ -183,12 +263,20 @@ export class ArcheryScene {
     targetFrame.position.set(0, TARGET_CENTER_Y, -TARGET_DISTANCE - 0.08);
     this.scene.add(targetFrame);
 
+    const backdrop = new Mesh(
+      new PlaneGeometry(42, 13),
+      new MeshStandardMaterial({ map: this.createBackdropTexture(), side: DoubleSide }),
+    );
+    backdrop.position.set(0, 5.4, -38.4);
+    this.scene.add(backdrop);
+
     const eventBanner = new Mesh(
       new PlaneGeometry(6.8, 1.45),
-      new MeshStandardMaterial({ map: this.createBannerTexture('FAMILY ARCHERY CUP', '#b76506'), side: DoubleSide }),
+      new MeshStandardMaterial({ map: this.createBannerTexture(this.theme.banner, this.theme.accent), side: DoubleSide }),
     );
-    eventBanner.position.set(0, 4.9, -24.6);
+    eventBanner.position.set(0, 5.05, -24.1);
     this.scene.add(eventBanner);
+    this.addCeremonyGate();
 
     this.addFamilyCheerStands();
 
@@ -267,13 +355,39 @@ export class ArcheryScene {
     const sideBanner = new Mesh(
       new PlaneGeometry(2.2, 5.8),
       new MeshStandardMaterial({
-        map: this.createBannerTexture(side > 0 ? 'TEAM FAMILY' : 'NATIONAL TRIAL', side > 0 ? '#247a6d' : '#3b82f6'),
+        map: this.createBannerTexture(side > 0 ? 'CHEER ZONE' : this.theme.backdropLabel, side > 0 ? this.theme.accentAlt : this.theme.accent),
         side: DoubleSide,
       }),
     );
     sideBanner.position.set(side * 5.45, 2.7, -20.75);
     sideBanner.rotation.y = side > 0 ? -0.06 : 0.06;
     this.scene.add(sideBanner);
+  }
+
+  private addCeremonyGate(): void {
+    const materials = {
+      post: new MeshStandardMaterial({ color: '#f7efe0', roughness: 0.72 }),
+      trim: new MeshStandardMaterial({ color: this.theme.accent, roughness: 0.42 }),
+      plate: new MeshStandardMaterial({ color: this.theme.accentAlt, roughness: 0.5 }),
+    };
+
+    const leftPost = new Mesh(new BoxGeometry(0.42, 5.8, 0.42), materials.post);
+    leftPost.position.set(-4.55, 2.92, -24.1);
+    const rightPost = leftPost.clone();
+    rightPost.position.x = 4.55;
+
+    const topBeam = new Mesh(new BoxGeometry(9.8, 0.44, 0.44), materials.post);
+    topBeam.position.set(0, 5.72, -24.1);
+
+    const trimBeam = new Mesh(new BoxGeometry(9.2, 0.12, 0.12), materials.trim);
+    trimBeam.position.set(0, 5.42, -23.82);
+
+    const leftPlate = new Mesh(new BoxGeometry(1.15, 2.4, 0.08), materials.plate);
+    leftPlate.position.set(-5.06, 3.34, -23.8);
+    const rightPlate = leftPlate.clone();
+    rightPlate.position.x = 5.06;
+
+    this.scene.add(leftPost, rightPost, topBeam, trimBeam, leftPlate, rightPlate);
   }
 
   private addFamilyCheerStands(): void {
@@ -487,12 +601,14 @@ export class ArcheryScene {
       new CylinderGeometry(0.012, 0.012, ARROW_SHAFT_LENGTH, 10),
       new MeshStandardMaterial({ color: '#d4b281' }),
     );
+    shaft.name = 'shaft';
     shaft.rotation.x = Math.PI / 2;
 
     const head = new Mesh(
       new ConeGeometry(0.03, ARROW_HEAD_LENGTH, 10),
-      new MeshStandardMaterial({ color: '#30343f' }),
+      new MeshStandardMaterial({ color: this.currentArrowTheme.tip }),
     );
+    head.name = 'tip';
     head.rotation.x = -Math.PI / 2;
     head.position.z = -(ARROW_SHAFT_LENGTH * 0.5 + ARROW_HEAD_LENGTH * 0.5);
 
@@ -500,22 +616,25 @@ export class ArcheryScene {
       new CylinderGeometry(0.018, 0.018, 0.035, 10),
       new MeshStandardMaterial({ color: '#f7efe0' }),
     );
+    nock.name = 'nock';
     nock.rotation.x = Math.PI / 2;
     nock.position.z = ARROW_SHAFT_LENGTH * 0.5 + 0.015;
 
     const wrap = new Mesh(
       new CylinderGeometry(0.014, 0.014, 0.08, 10),
-      new MeshStandardMaterial({ color: '#a94e4e' }),
+      new MeshStandardMaterial({ color: this.currentArrowTheme.wrap }),
     );
+    wrap.name = 'wrap';
     wrap.rotation.x = Math.PI / 2;
     wrap.position.z = ARROW_SHAFT_LENGTH * 0.24;
 
-    const featherPalette = ['#d9485a', '#f0b13c', '#2f8f83'];
+    const featherPalette = [this.currentArrowTheme.featherA, this.currentArrowTheme.featherB, this.currentArrowTheme.featherC];
     for (let index = 0; index < 3; index += 1) {
       const feather = new Mesh(
         new PlaneGeometry(0.16, 0.05),
         new MeshStandardMaterial({ color: featherPalette[index], side: DoubleSide }),
       );
+      feather.name = `feather-${index}`;
       feather.rotation.y = Math.PI / 2;
       feather.rotation.z = (Math.PI * 2 * index) / 3;
       feather.position.set(0, 0.028, ARROW_SHAFT_LENGTH * 0.34);
@@ -616,6 +735,148 @@ export class ArcheryScene {
     return this.enhanceTexture(new CanvasTexture(canvas));
   }
 
+  private createBackdropTexture(): CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4096;
+    canvas.height = 1280;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      return new CanvasTexture(canvas);
+    }
+
+    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, this.theme.sky);
+    gradient.addColorStop(0.38, '#edf3f4');
+    gradient.addColorStop(0.66, '#efe7d7');
+    gradient.addColorStop(1, '#95b86a');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = 'rgba(255, 229, 170, 0.84)';
+    context.beginPath();
+    context.arc(canvas.width * 0.18, canvas.height * 0.18, 196, 0, Math.PI * 2);
+    context.fill();
+
+    const haze = context.createLinearGradient(0, 260, 0, 720);
+    haze.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+    haze.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    context.fillStyle = haze;
+    context.fillRect(0, 240, canvas.width, 460);
+
+    context.fillStyle = 'rgba(83, 111, 134, 0.14)';
+    context.beginPath();
+    context.moveTo(0, 760);
+    context.lineTo(460, 584);
+    context.lineTo(910, 700);
+    context.lineTo(1380, 412);
+    context.lineTo(1940, 726);
+    context.lineTo(2500, 330);
+    context.lineTo(3090, 708);
+    context.lineTo(3610, 514);
+    context.lineTo(4096, 760);
+    context.lineTo(4096, 1280);
+    context.lineTo(0, 1280);
+    context.closePath();
+    context.fill();
+
+    context.fillStyle = 'rgba(55, 77, 96, 0.18)';
+    context.beginPath();
+    context.moveTo(0, 860);
+    context.lineTo(520, 728);
+    context.lineTo(960, 878);
+    context.lineTo(1500, 642);
+    context.lineTo(2140, 916);
+    context.lineTo(2760, 684);
+    context.lineTo(3340, 868);
+    context.lineTo(4096, 780);
+    context.lineTo(4096, 1280);
+    context.lineTo(0, 1280);
+    context.closePath();
+    context.fill();
+
+    const terraceGradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    terraceGradient.addColorStop(0, 'rgba(255, 250, 242, 0.96)');
+    terraceGradient.addColorStop(1, 'rgba(235, 224, 206, 0.92)');
+
+    context.fillStyle = terraceGradient;
+    context.fillRect(300, 852, 760, 248);
+    context.fillRect(3036, 852, 760, 248);
+
+    context.fillStyle = 'rgba(22, 36, 63, 0.08)';
+    for (let row = 0; row < 3; row += 1) {
+      context.fillRect(340, 900 + row * 62, 680, 18);
+      context.fillRect(3076, 900 + row * 62, 680, 18);
+    }
+
+    for (let block = 0; block < 26; block += 1) {
+      const color = CROWD_COLORS[block % CROWD_COLORS.length];
+      context.fillStyle = color;
+      const leftX = 356 + (block % 13) * 48;
+      const rightX = 3090 + (block % 13) * 48;
+      const rowY = 924 + Math.floor(block / 13) * 70;
+      context.fillRect(leftX, rowY, 28, 28);
+      context.fillRect(leftX + 8, rowY - 18, 12, 18);
+      context.fillRect(rightX, rowY, 28, 28);
+      context.fillRect(rightX + 8, rowY - 18, 12, 18);
+    }
+
+    context.fillStyle = this.theme.accent;
+    context.fillRect(700, 814, 2696, 22);
+    context.fillRect(700, 1100, 2696, 22);
+
+    context.fillStyle = 'rgba(255, 251, 244, 0.95)';
+    context.fillRect(1120, 786, 1856, 358);
+    context.strokeStyle = 'rgba(22, 36, 63, 0.08)';
+    context.lineWidth = 10;
+    context.strokeRect(1120, 786, 1856, 358);
+
+    context.fillStyle = this.theme.accentAlt;
+    context.fillRect(1264, 872, 72, 230);
+    context.fillRect(2760, 872, 72, 230);
+    context.fillRect(1324, 840, 1448, 24);
+
+    context.fillStyle = 'rgba(22, 36, 63, 0.09)';
+    context.fillRect(1450, 910, 1170, 132);
+
+    context.fillStyle = '#fff6ea';
+    context.fillRect(1600, 876, 876, 88);
+    context.strokeStyle = 'rgba(22, 36, 63, 0.1)';
+    context.lineWidth = 6;
+    context.strokeRect(1600, 876, 876, 88);
+
+    context.fillStyle = this.theme.accent;
+    context.fillRect(1506, 822, 178, 96);
+    context.fillRect(2392, 822, 178, 96);
+
+    context.fillStyle = 'rgba(255, 249, 238, 0.82)';
+    context.fillRect(1408, 1018, 1260, 68);
+
+    context.fillStyle = '#16243f';
+    context.font = '700 146px "Trebuchet MS", sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(this.theme.backdropLabel, canvas.width / 2, 954);
+
+    context.fillStyle = 'rgba(22, 36, 63, 0.72)';
+    context.font = '700 74px "Trebuchet MS", sans-serif';
+    context.fillText(this.theme.banner, canvas.width / 2, 1050);
+
+    context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+    context.lineWidth = 8;
+    context.beginPath();
+    context.moveTo(184, 1098);
+    context.lineTo(1208, 1158);
+    context.moveTo(3912, 1098);
+    context.lineTo(2888, 1158);
+    context.stroke();
+
+    context.fillStyle = 'rgba(255, 255, 255, 0.34)';
+    context.fillRect(0, 1118, canvas.width, 24);
+
+    return this.enhanceTexture(new CanvasTexture(canvas));
+  }
+
   private createBannerTexture(label: string, accent: string): CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
@@ -678,6 +939,31 @@ export class ArcheryScene {
     texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
     texture.needsUpdate = true;
     return texture;
+  }
+
+  private applyArrowTheme(group: Group, theme: ArrowTheme): void {
+    group.traverse((node) => {
+      if (!(node instanceof Mesh)) {
+        return;
+      }
+
+      const material = node.material;
+      if (!(material instanceof MeshStandardMaterial)) {
+        return;
+      }
+
+      if (node.name === 'tip') {
+        material.color.set(theme.tip);
+      } else if (node.name === 'wrap') {
+        material.color.set(theme.wrap);
+      } else if (node.name === 'feather-0') {
+        material.color.set(theme.featherA);
+      } else if (node.name === 'feather-1') {
+        material.color.set(theme.featherB);
+      } else if (node.name === 'feather-2') {
+        material.color.set(theme.featherC);
+      }
+    });
   }
 
   private loadPortraitTexture(key: keyof typeof PORTRAITS): Texture {

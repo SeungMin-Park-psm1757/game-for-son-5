@@ -19,11 +19,11 @@ describe('home screen interactions', () => {
         dominantHand: 'right',
       },
       unlockedModes: ['practice6', 'chapterKorea9'],
-      homeComment: {
-        speaker: '엄마',
-        portraitKey: 'char_mom',
-        text: '천천히 가도 괜찮아.',
-      },
+      supportSession: [
+        { speaker: '아빠', portraitKey: 'char_dad', text: '한 발씩 차분하게 가보자.' },
+        { speaker: '엄마', portraitKey: 'char_mom', text: '호흡부터 맞추면 괜찮아.' },
+        { speaker: '세연', portraitKey: 'char_seyeon', text: '오늘은 내가 제일 크게 응원할게!' },
+      ],
       onStartMode,
       onSettings,
       onResetHoldComplete,
@@ -35,6 +35,11 @@ describe('home screen interactions', () => {
     const hallModal = screen.element.querySelector<HTMLElement>('.hall-modal-scrim');
     const hallCloseButton = screen.element.querySelector<HTMLButtonElement>('.hall-close-button');
     const startSheet = screen.element.querySelector<HTMLElement>('.start-sheet-scrim');
+    const supportButtons = [...screen.element.querySelectorAll<HTMLButtonElement>('.family-support-card')];
+
+    expect(screen.element.textContent).toContain('정우의 국궁 올림픽');
+    supportButtons[1].click();
+    expect(screen.element.textContent).toContain('호흡부터 맞추면 괜찮아.');
 
     dockButtons[0].click();
     expect(startSheet?.hidden).toBe(false);

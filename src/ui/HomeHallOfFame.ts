@@ -1,6 +1,8 @@
 import { CHAPTER_MODE_IDS, getModeConfig } from '../data/modes';
 import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
+import type { HomeSupportPortraitKey, HomeSupportSelection } from '../data/homeSupport';
 import { getRecentRecords, getTopScoreRecords, getTopXRecords, sortByScore } from '../data/records';
+import { getPlayerProgress } from '../game/playerProgress';
 import type { AppSettings, MatchRecord, ModeId } from '../types';
 import { element, formatDate, formatPercent, type ScreenController } from './dom';
 
@@ -8,11 +10,7 @@ interface HomeOptions {
   records: MatchRecord[];
   settings: AppSettings;
   unlockedModes: ModeId[];
-  homeComment: {
-    speaker: string;
-    portraitKey: keyof typeof PORTRAITS;
-    text: string;
-  };
+  supportSession: HomeSupportSelection[];
   onStartMode: (mode: ModeId) => void;
   onSettings: () => void;
   onResetHoldComplete: () => void;
@@ -70,22 +68,12 @@ function createStage(options: HomeOptions): {
   `;
 
   const header = element('div', 'home-stage-header');
-  header.innerHTML = `
-    <span class="eyebrow">Family Archery 3D</span>
-    <h1 class="home-stage-title">국궁 월드 투어</h1>
-    <p class="home-stage-subtitle">가족 응원을 등에 업고, 한국에서 시작해 일본과 미국까지 기록을 올려보세요.</p>
-  `;
+  header.innerHTML = '<h1 class="home-stage-title">정우의 국궁 올림픽</h1>';
 
-  const commentCard = createCommentCard(options.homeComment);
-  const familyRail = createFamilyPhotoRail();
-
-  const recordRibbon = element('div', 'home-stage-ribbon');
-  const best = sortByScore(options.records)[0];
-  const latest = getRecentRecords(options.records, 1)[0];
-  recordRibbon.innerHTML = `
-    <span>🏹 최고 ${best ? `${getModeConfig(best.mode).locationLabel} ${best.totalScore}점` : '기록 없음'}</span>
-    <span>✨ 최근 ${latest ? `${getModeConfig(latest.mode).locationLabel} ${latest.totalScore}점` : '아직 없음'}</span>
-  `;
+  const main = element('div', 'home-stage-main');
+  const supportPanel = createSupportPanel(options.supportSession);
+  const statusRibbon = createStatusRibbon(options.records);
+  main.append(supportPanel, statusRibbon);
 
   const dock = element('nav', 'home-menu-dock');
   const startButton = element('button', 'primary-button dock-button', '게임 시작');
@@ -93,45 +81,77 @@ function createStage(options: HomeOptions): {
   const settingsButton = element('button', 'secondary-button dock-button', '설정');
   dock.append(startButton, hallButton, settingsButton);
 
-  shell.append(atmosphere, header, commentCard, familyRail, recordRibbon, dock);
+  shell.append(atmosphere, header, main, dock);
   return { element: shell, startButton, hallButton, settingsButton };
 }
 
-function createCommentCard(comment: HomeOptions['homeComment']): HTMLElement {
-  const card = element('div', 'home-stage-comment');
-  const info = PORTRAITS[comment.portraitKey];
-  card.style.setProperty('--portrait-accent', info.accent);
-  card.style.setProperty('--portrait-soft', info.accentSoft);
-  card.innerHTML = `
-    <div class="home-stage-comment-photo-wrap">
-      <img class="home-stage-comment-photo" src="${getPortraitImageUrl(comment.portraitKey)}" alt="${info.label}" />
-    </div>
-    <div>
-      <strong>${comment.speaker}</strong>
-      <p>${comment.text}</p>
-    </div>
-  `;
-  return card;
-}
+function createSupportPanel(session: HomeSupportSelection[]): HTMLElement {
+  const panel = element('div', 'home-support-panel');
+  const messageCard = element('div', 'home-stage-comment');
+  const castGrid = element('div', 'family-support-grid');
+  const safeSession: HomeSupportSelection[] =
+    session.length > 0 ? session : [{ portraitKey: 'char_mom', speaker: '엄마', text: '천천히 호흡부터 맞춰보자.' }];
+  const castButtons: HTMLButtonElement[] = [];
+  let activeKey: HomeSupportPortraitKey = safeSession[0].portraitKey;
 
-function createFamilyPhotoRail(): HTMLElement {
-  const rail = element('div', 'family-photo-rail');
-  (Object.keys(PORTRAITS) as Array<keyof typeof PORTRAITS>).forEach((key, index) => {
-    const info = PORTRAITS[key];
-    const card = element('div', 'family-photo-card');
-    card.style.setProperty('--portrait-accent', info.accent);
-    card.style.setProperty('--portrait-soft', info.accentSoft);
-    card.style.setProperty('--photo-tilt', `${index % 2 === 0 ? -1 : 1}`);
-    card.innerHTML = `
-      <div class="family-photo-card-stack"></div>
-      <div class="family-photo-card-frame">
-        <img src="${getPortraitImageUrl(key)}" alt="${info.label}" />
+  const renderMessage = (selection: HomeSupportSelection) => {
+    const info = PORTRAITS[selection.portraitKey];
+    messageCard.style.setProperty('--portrait-accent', info.accent);
+    messageCard.style.setProperty('--portrait-soft', info.accentSoft);
+    messageCard.innerHTML = `
+      <div>
+        <span class="home-stage-message-tag">${selection.speaker} 응원</span>
+        <p>${selection.text}</p>
       </div>
+    `;
+
+    castButtons.forEach((button) => {
+      button.dataset.active = button.dataset.key === selection.portraitKey ? 'true' : 'false';
+    });
+  };
+
+  safeSession.forEach((selection) => {
+    const info = PORTRAITS[selection.portraitKey];
+    const button = element('button', 'family-support-card');
+    button.dataset.key = selection.portraitKey;
+    button.style.setProperty('--portrait-accent', info.accent);
+    button.style.setProperty('--portrait-soft', info.accentSoft);
+    button.innerHTML = `
+      <span class="family-support-photo-wrap">
+        <img class="family-support-photo" src="${getPortraitImageUrl(selection.portraitKey)}" alt="${info.label}" />
+      </span>
       <strong>${info.label}</strong>
     `;
-    rail.append(card);
+    button.addEventListener('click', () => {
+      activeKey = selection.portraitKey;
+      renderMessage(selection);
+    });
+    castButtons.push(button);
+    castGrid.append(button);
   });
-  return rail;
+
+  const initial = safeSession.find((entry) => entry.portraitKey === activeKey) ?? safeSession[0];
+  if (initial) {
+    renderMessage(initial);
+  }
+
+  panel.append(messageCard, castGrid);
+  return panel;
+}
+
+function createStatusRibbon(records: MatchRecord[]): HTMLElement {
+  const ribbon = element('div', 'home-stage-ribbon');
+  const best = sortByScore(records)[0];
+  const latest = getRecentRecords(records, 1)[0];
+  const progress = getPlayerProgress(records);
+
+  ribbon.innerHTML = `
+    <span>🏅 Lv.${progress.level} ${progress.levelLabel}</span>
+    <span>🏹 최고 ${best ? `${getModeConfig(best.mode).locationLabel} ${best.totalScore}점` : '기록 없음'}</span>
+    <span>✨ 최근 ${latest ? `${getModeConfig(latest.mode).locationLabel} ${latest.totalScore}점` : '아직 없음'}</span>
+  `;
+
+  return ribbon;
 }
 
 function createStartSheet(options: HomeOptions): { element: HTMLElement; open: () => void } {
@@ -150,8 +170,8 @@ function createStartSheet(options: HomeOptions): { element: HTMLElement; open: (
 
   const list = element('div', 'start-sheet-list');
   list.append(
-    createModeCard('practice6', options, '가볍게 손풀기'),
-    ...CHAPTER_MODE_IDS.map((modeId) => createModeCard(modeId, options, getChapterRequirement(modeId, options.unlockedModes))),
+    createModeCard('practice6', options, getModeHelperText('practice6', options.unlockedModes)),
+    ...CHAPTER_MODE_IDS.map((modeId) => createModeCard(modeId, options, getModeHelperText(modeId, options.unlockedModes))),
   );
 
   sheet.append(header, list);
@@ -200,14 +220,15 @@ function createModeCard(modeId: ModeId, options: HomeOptions, helperText: string
   return card;
 }
 
-function getChapterRequirement(modeId: ModeId, unlockedModes: ModeId[]): string {
+function getModeHelperText(modeId: ModeId, unlockedModes: ModeId[]): string {
   const mode = getModeConfig(modeId);
-  if (unlockedModes.includes(modeId)) {
-    return mode.description;
+  if (modeId === 'practice6') {
+    return '바람 약함 · 감각 확인';
   }
-  return modeId === 'chapterJapan9'
-    ? '한국 경기에서 66점 이상을 기록하면 열립니다.'
-    : '일본 경기에서 72점 이상을 기록하면 열립니다.';
+  if (!unlockedModes.includes(modeId)) {
+    return modeId === 'chapterJapan9' ? '해금 조건 · 한국 66점' : '해금 조건 · 일본 72점';
+  }
+  return mode.description;
 }
 
 function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: () => void } {
@@ -216,7 +237,7 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
   const card = element('div', 'hall-modal-card');
   const header = element('div', 'hall-modal-header');
   const titleBlock = element('div', 'hall-modal-title');
-  titleBlock.innerHTML = `<span>Hall of Fame</span><h2>명예의 전당</h2>`;
+  titleBlock.innerHTML = '<span>Hall of Fame</span><h2>명예의 전당</h2>';
   const closeButton = element('button', 'topbar-icon-button hall-close-button', '닫기');
   header.append(titleBlock, closeButton);
 

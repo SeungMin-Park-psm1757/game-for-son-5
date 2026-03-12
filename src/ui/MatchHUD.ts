@@ -7,6 +7,7 @@ export interface MatchImpactBriefing {
   detail: string;
   scoreText: string;
   isHighlight: boolean;
+  specialLabel?: string;
 }
 
 export interface MatchHudState {
@@ -16,6 +17,7 @@ export interface MatchHudState {
   totalScore: number;
   xCount: number;
   windLabel: string;
+  levelLabel: string;
   paused: boolean;
   debugEnabled: boolean;
   snapshot: AimSnapshot;
@@ -73,6 +75,7 @@ export class MatchHUD {
       <span>🎯 ${Math.min(state.arrowIndex + 1, state.arrowCount)}/${state.arrowCount}</span>
       <span>🏹 ${state.totalScore}점</span>
       <span>✨ X ${state.xCount}</span>
+      <span>🏅 ${state.levelLabel}</span>
       <span>🌬 ${state.windLabel}</span>
     `;
 
@@ -103,6 +106,7 @@ export class MatchHUD {
         <span>${state.impactBriefing.tag}</span>
         <strong>${state.impactBriefing.headline}</strong>
         <p>${state.impactBriefing.scoreText} · ${state.impactBriefing.detail}</p>
+        ${state.impactBriefing.specialLabel ? `<small>${state.impactBriefing.specialLabel}</small>` : ''}
       `;
     } else {
       this.impactFlash.hidden = true;

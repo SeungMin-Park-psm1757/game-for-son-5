@@ -11,7 +11,8 @@ import { element, type ScreenController } from '../ui/dom';
 import { MatchHUD, type MatchImpactBriefing } from '../ui/MatchHUD';
 import { simulateArrowFlight } from './Ballistics';
 import { ArcheryScene } from './ArcheryScene';
-import { scoreTarget } from './Scoring';
+import { getPlayerProgress } from './playerProgress';
+import { scoreTarget, TARGET_RADIUS } from './Scoring';
 import type { MatchSummary } from './types';
 import { WindSystem } from './WindSystem';
 
@@ -57,6 +58,7 @@ export class MatchController implements ScreenController {
   private readonly arrowScores: number[] = [];
   private readonly stabilitySamples: number[] = [];
   private readonly releaseSamples: number[] = [];
+  private readonly hitHistory: Array<{ x: number; y: number }> = [];
   private drawStabilityWindow: number[] = [];
   private lowScoreStreak = 0;
   private seenTen = false;
@@ -65,11 +67,13 @@ export class MatchController implements ScreenController {
   private arrowPatternSeed = Math.random() * Math.PI * 2;
   private impactBriefing: MatchImpactBriefing | null = null;
   private impactBriefingUntil = 0;
+  private progress = getPlayerProgress([]);
 
   constructor(private readonly options: MatchControllerOptions) {
     this.mode = getModeConfig(this.options.modeId);
     this.windSystem = new WindSystem(this.mode.windDrift, this.mode.windClamp);
     this.currentWind = this.windSystem.next(0);
+    this.progress = getPlayerProgress(this.options.records);
 
     const root = element('section', 'screen match-screen');
     const surface = element('div', 'match-surface');
@@ -89,7 +93,7 @@ export class MatchController implements ScreenController {
     surface.append(this.sceneHost, this.hud.element, this.pauseOverlay);
     root.append(surface);
     this.element = root;
-    this.scene = new ArcheryScene(this.sceneHost, options.settings.reduceMotion);
+    this.scene = new ArcheryScene(this.sceneHost, options.settings.reduceMotion, this.mode.chapterId, this.progress.arrowTheme);
 
     this.sceneHost.addEventListener('pointerdown', this.onSurfacePointerDown);
     this.sceneHost.addEventListener('pointerup', this.onSurfacePointerUp);
@@ -187,6 +191,12 @@ export class MatchController implements ScreenController {
 
   private loop = () => {
     const now = performance.now();
+    const nextProgress = getPlayerProgress(this.options.records, this.arrowIndex);
+    if (nextProgress.level !== this.progress.level) {
+      this.scene.setArrowTheme(nextProgress.arrowTheme);
+    }
+    this.progress = nextProgress;
+
     const frame = this.composeAimFrame(now);
 
     if (this.drawing) {
@@ -213,6 +223,7 @@ export class MatchController implements ScreenController {
       totalScore: this.totalScore,
       xCount: this.xCount,
       windLabel: this.windSystem.describe(this.currentWind),
+      levelLabel: `Lv.${this.progress.level}`,
       paused: this.paused,
       debugEnabled: this.options.settings.debugOverlay,
       snapshot: frame.snapshot,
@@ -252,6 +263,10 @@ export class MatchController implements ScreenController {
       stability,
       releaseQuality,
     });
+    const impactResolution = resolveImpactPlacement(shotPath.hitX, shotPath.hitY, this.hitHistory);
+    applyImpactOffset(shotPath.path, impactResolution.hitX - shotPath.hitX, impactResolution.hitY - shotPath.hitY);
+    shotPath.hitX = impactResolution.hitX;
+    shotPath.hitY = impactResolution.hitY;
     const shotScore = scoreTarget(shotPath.hitX, shotPath.hitY);
 
     this.drawing = false;
@@ -259,8 +274,8 @@ export class MatchController implements ScreenController {
     this.options.audio.playShot();
     this.options.haptics.pulse(12);
     await this.scene.playShot(shotPath.path, shotPath.hitX, shotPath.hitY);
-    this.options.audio.playImpact(shotScore.score >= 9);
-    this.options.haptics.pulse(shotScore.score >= 9 ? [16, 30, 18] : 12);
+    this.options.audio.playImpact(shotScore.score >= 9 || Boolean(impactResolution.specialLabel));
+    this.options.haptics.pulse(impactResolution.specialLabel ? [18, 28, 18, 28, 22] : shotScore.score >= 9 ? [16, 30, 18] : 12);
 
     this.arrowScores.push(shotScore.score);
     this.totalScore += shotScore.score;
@@ -269,9 +284,17 @@ export class MatchController implements ScreenController {
     }
     this.stabilitySamples.push(stability);
     this.releaseSamples.push(releaseQuality);
+    this.hitHistory.push({ x: shotPath.hitX, y: shotPath.hitY });
     this.lowScoreStreak = shotScore.score <= 5 ? this.lowScoreStreak + 1 : 0;
     this.arrowIndex += 1;
-    this.impactBriefing = createImpactBriefing(this.mode.locationLabel, shotScore.score, shotScore.isX, shotScore.hitX, shotScore.hitY);
+    this.impactBriefing = createImpactBriefing(
+      this.mode.locationLabel,
+      shotScore.score,
+      shotScore.isX,
+      shotPath.hitX,
+      shotPath.hitY,
+      impactResolution.specialLabel,
+    );
     this.impactBriefingUntil = performance.now() + 2000;
 
     if (shotScore.score === 10 && !this.seenTen) {
@@ -382,7 +405,7 @@ export class MatchController implements ScreenController {
 
     const time = now / 1000;
     const tension = clamp(drawDuration / 1.38, 0, 1.08);
-    const amplitude = (0.004 + tension * 0.025) * (1.02 - baseStability * 0.18) * this.mode.tremorMultiplier;
+    const amplitude = (0.008 + tension * 0.034) * (1.04 - baseStability * 0.16) * this.mode.tremorMultiplier * this.progress.tremorMultiplier;
     const offsetYaw =
       Math.sin(time * 8.4 + this.arrowPatternSeed) * amplitude +
       Math.sin(time * 12.6 + this.arrowPatternSeed * 0.5) * amplitude * 0.38;
@@ -422,23 +445,32 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function createImpactBriefing(locationLabel: string, score: number, isX: boolean, hitX: number, hitY: number): MatchImpactBriefing {
+function createImpactBriefing(
+  locationLabel: string,
+  score: number,
+  isX: boolean,
+  hitX: number,
+  hitY: number,
+  specialLabel?: string,
+): MatchImpactBriefing {
   if (score <= 0) {
     return {
       tag: '속보',
-      headline: `${locationLabel} 경기 판정`,
+      headline: `${locationLabel} 판정`,
       detail: '표적 바깥',
       scoreText: 'MISS',
       isHighlight: false,
+      specialLabel,
     };
   }
 
   return {
-    tag: '속보',
-    headline: `${locationLabel} 경기 판정`,
+    tag: specialLabel ? '특보' : '속보',
+    headline: specialLabel ? '같은 자리 재명중' : `${locationLabel} 판정`,
     detail: `${describeImpactZone(hitX, hitY)} ${describeRing(score, isX)}`,
     scoreText: isX ? 'X' : `${score}점`,
-    isHighlight: score >= 9,
+    isHighlight: score >= 9 || Boolean(specialLabel),
+    specialLabel,
   };
 }
 
@@ -472,6 +504,53 @@ function describeImpactZone(hitX: number, hitY: number): string {
   return `${horizontal}${vertical || '측'}단`;
 }
 
+function resolveImpactPlacement(
+  hitX: number,
+  hitY: number,
+  hitHistory: Array<{ x: number; y: number }>,
+): { hitX: number; hitY: number; specialLabel?: string } {
+  const previous = hitHistory.find((entry) => Math.hypot(hitX - entry.x, hitY - entry.y) < 0.1);
+  if (!previous) {
+    return { hitX, hitY };
+  }
+
+  const distance = Math.hypot(hitX - previous.x, hitY - previous.y);
+  if (distance < 0.038 && Math.random() < 0.05) {
+    return {
+      hitX,
+      hitY,
+      specialLabel: '로빈훗 샷! 이전 화살 자리를 다시 꿰뚫었습니다.',
+    };
+  }
+
+  const angle = distance < 0.0001 ? Math.random() * Math.PI * 2 : Math.atan2(hitY - previous.y, hitX - previous.x);
+  const adjustedX = previous.x + Math.cos(angle) * (0.085 + Math.random() * 0.03);
+  const adjustedY = previous.y + Math.sin(angle) * (0.085 + Math.random() * 0.03);
+  return clampImpactToTarget(adjustedX, adjustedY);
+}
+
+function clampImpactToTarget(hitX: number, hitY: number): { hitX: number; hitY: number } {
+  const distance = Math.hypot(hitX, hitY);
+  const maxRadius = TARGET_RADIUS - 0.02;
+  if (distance <= maxRadius) {
+    return { hitX, hitY };
+  }
+
+  const ratio = maxRadius / Math.max(distance, 0.0001);
+  return { hitX: hitX * ratio, hitY: hitY * ratio };
+}
+
+function applyImpactOffset(path: Array<{ x: number; y: number }>, deltaX: number, deltaY: number): void {
+  if (Math.abs(deltaX) < 0.0001 && Math.abs(deltaY) < 0.0001) {
+    return;
+  }
+
+  for (let index = Math.max(0, path.length - 3); index < path.length; index += 1) {
+    path[index].x += deltaX;
+    path[index].y += deltaY;
+  }
+}
+
 function createRecordId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -484,7 +563,7 @@ function safeSetPointerCapture(node: HTMLElement, pointerId: number): void {
   try {
     node.setPointerCapture?.(pointerId);
   } catch {
-    // Some browsers and synthetic input paths reject capture when the pointer is not active yet.
+    // Some browsers reject pointer capture when the pointer is already released.
   }
 }
 
@@ -494,6 +573,6 @@ function safeReleasePointerCapture(node: HTMLElement, pointerId: number): void {
       node.releasePointerCapture?.(pointerId);
     }
   } catch {
-    // Ignore capture release failures so a missed pointer does not crash the whole app.
+    // A missed release should not break the whole match loop.
   }
 }

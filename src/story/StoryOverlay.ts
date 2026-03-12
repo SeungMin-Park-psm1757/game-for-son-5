@@ -1,9 +1,13 @@
 import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
-import { element } from '../ui/dom';
+import { clearNode, element } from '../ui/dom';
 import type { StoryEvent } from './types';
 
 export class StoryOverlay {
   constructor(private readonly host: HTMLElement) {}
+
+  public clear(): void {
+    clearNode(this.host);
+  }
 
   public async present(event: StoryEvent): Promise<void> {
     if (event.delivery === 'toast') {

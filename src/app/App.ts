@@ -9,6 +9,7 @@ import { showResetConfirmModal } from '../ui/ResetConfirmModal';
 import { createResultScreen } from '../ui/ResultScreen';
 import { createSettingsScreen } from '../ui/SettingsScreen';
 import { clearNode, type ScreenController } from '../ui/dom';
+import { createHomeSupportSession } from '../data/homeSupport';
 import type { MatchSummary } from '../game/types';
 import { MatchController } from '../game/MatchController';
 import type { StoryTrigger } from '../story/types';
@@ -73,7 +74,7 @@ export class App {
           records: this.snapshot.records,
           settings: this.snapshot.settings,
           unlockedModes: this.snapshot.unlockedModes,
-          homeComment: new StoryEngine(this.snapshot.storyFlags).getRandomHomeComment().lines[0],
+          supportSession: createHomeSupportSession(),
           onStartMode: (mode) => void this.beginMode(mode),
           onSettings: () => this.navigate(buildRoute('settings')),
           onResetHoldComplete: () =>
@@ -154,6 +155,7 @@ export class App {
   private mountScreen(screen: ScreenController): void {
     this.currentScreen?.destroy?.();
     clearNode(this.screenHost);
+    this.overlay.clear();
     this.currentScreen = screen;
     this.screenHost.append(screen.element);
   }
