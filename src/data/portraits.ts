@@ -6,6 +6,7 @@ export interface PortraitDefinition {
   initials: string;
   accent: string;
   accentSoft: string;
+  imageFile: string;
 }
 
 export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
@@ -15,6 +16,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     initials: '아',
     accent: '#0f766e',
     accentSoft: '#99f6e4',
+    imageFile: 'char_dad.png',
   },
   char_mom: {
     key: 'char_mom',
@@ -22,6 +24,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     initials: '엄',
     accent: '#be185d',
     accentSoft: '#fbcfe8',
+    imageFile: 'char_mom.png',
   },
   char_seyeon: {
     key: 'char_seyeon',
@@ -29,6 +32,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     initials: '세',
     accent: '#c2410c',
     accentSoft: '#fed7aa',
+    imageFile: 'char_seyeon.png',
   },
   char_jeongwoo: {
     key: 'char_jeongwoo',
@@ -36,5 +40,18 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     initials: '정',
     accent: '#1d4ed8',
     accentSoft: '#bfdbfe',
+    imageFile: 'char_jeongwoo.png',
   },
 };
+
+export function getPortraitImageUrl(key: PortraitKey): string {
+  return resolvePublicAsset(`assets/family/${PORTRAITS[key].imageFile}`);
+}
+
+function resolvePublicAsset(path: string): string {
+  if (typeof window === 'undefined') {
+    return path;
+  }
+
+  return new URL(path, window.location.href.split('#')[0]).toString();
+}

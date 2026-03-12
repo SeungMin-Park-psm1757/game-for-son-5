@@ -17,10 +17,13 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  Texture,
+  TextureLoader,
   Vector3,
   WebGLRenderer,
 } from 'three';
 import { TARGET_CENTER_Y, TARGET_DISTANCE } from './Ballistics';
+import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
 import type { AimSnapshot } from '../input/types';
 
 const ARROW_SHAFT_LENGTH = 1.04;
@@ -42,6 +45,7 @@ export class ArcheryScene {
   private readonly scene = new Scene();
   private readonly camera = new PerspectiveCamera(64, 1, 0.1, 200);
   private readonly renderer = new WebGLRenderer({ antialias: true, alpha: true });
+  private readonly textureLoader = new TextureLoader();
   private readonly resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.resize()) : null;
   private readonly bowGroup = new Group();
   private readonly bowHand = this.createBowHand();
@@ -175,6 +179,8 @@ export class ArcheryScene {
     eventBanner.position.set(0, 4.9, -24.6);
     this.scene.add(eventBanner);
 
+    this.addFamilyCheerStands();
+
     this.targetPlane.position.set(0, TARGET_CENTER_Y, -TARGET_DISTANCE);
     this.scene.add(this.targetPlane);
     this.scene.add(this.impactGroup);
@@ -257,6 +263,86 @@ export class ArcheryScene {
     sideBanner.position.set(side * 5.45, 2.7, -20.75);
     sideBanner.rotation.y = side > 0 ? -0.06 : 0.06;
     this.scene.add(sideBanner);
+  }
+
+  private addFamilyCheerStands(): void {
+    const keys = Object.keys(PORTRAITS) as Array<keyof typeof PORTRAITS>;
+    const anchors = [
+      { x: -7.4, z: -12.8, rotation: 0.16 },
+      { x: -8.8, z: -21.4, rotation: 0.18 },
+      { x: 7.4, z: -12.8, rotation: -0.16 },
+      { x: 8.8, z: -21.4, rotation: -0.18 },
+    ];
+
+    keys.forEach((key, index) => {
+      const anchor = anchors[index];
+      const stand = this.createFamilyCheerStand(key);
+      stand.position.set(anchor.x, 0, anchor.z);
+      stand.rotation.y = anchor.rotation;
+      this.scene.add(stand);
+    });
+  }
+
+  private createFamilyCheerStand(key: keyof typeof PORTRAITS): Group {
+    const info = PORTRAITS[key];
+    const stand = new Group();
+
+    const platform = new Mesh(
+      new BoxGeometry(1.55, 0.22, 1.16),
+      new MeshStandardMaterial({ color: '#847160', roughness: 0.8 }),
+    );
+    platform.position.y = 0.11;
+
+    const riser = new Mesh(
+      new BoxGeometry(1.08, 0.34, 0.74),
+      new MeshStandardMaterial({ color: '#f6efe1', roughness: 0.7 }),
+    );
+    riser.position.set(0, 0.39, 0);
+
+    const frame = new Mesh(
+      new BoxGeometry(1.02, 1.52, 0.12),
+      new MeshStandardMaterial({ color: '#d9cab4', roughness: 0.55 }),
+    );
+    frame.position.set(0, 1.34, -0.02);
+
+    const photo = new Mesh(
+      new PlaneGeometry(0.86, 1.32),
+      new MeshStandardMaterial({
+        map: this.loadPortraitTexture(key),
+        transparent: true,
+        alphaTest: 0.02,
+        side: DoubleSide,
+      }),
+    );
+    photo.position.set(0, 1.34, 0.05);
+
+    const topAccent = new Mesh(
+      new BoxGeometry(1.04, 0.12, 0.08),
+      new MeshStandardMaterial({ color: info.accent, roughness: 0.45 }),
+    );
+    topAccent.position.set(0, 2.08, 0.02);
+
+    const namePlate = new Mesh(
+      new BoxGeometry(0.94, 0.16, 0.12),
+      new MeshStandardMaterial({ color: '#fff7eb', roughness: 0.6 }),
+    );
+    namePlate.position.set(0, 0.74, 0.08);
+
+    const nameBand = new Mesh(
+      new BoxGeometry(0.78, 0.05, 0.02),
+      new MeshStandardMaterial({ color: info.accent }),
+    );
+    nameBand.position.set(0, 0.74, 0.15);
+
+    const backBrace = new Mesh(
+      new BoxGeometry(0.18, 1.34, 0.18),
+      new MeshStandardMaterial({ color: '#7f6958', roughness: 0.72 }),
+    );
+    backBrace.position.set(0, 1.12, -0.38);
+    backBrace.rotation.x = -0.24;
+
+    stand.add(platform, riser, frame, photo, topAccent, namePlate, nameBand, backBrace);
+    return stand;
   }
 
   private updateCamera(snapshot: AimSnapshot, scopeRatio: number): void {
@@ -502,6 +588,14 @@ export class ArcheryScene {
   private enhanceTexture(texture: CanvasTexture): CanvasTexture {
     texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
     texture.needsUpdate = true;
+    return texture;
+  }
+
+  private loadPortraitTexture(key: keyof typeof PORTRAITS): Texture {
+    const texture = this.textureLoader.load(getPortraitImageUrl(key), (loaded) => {
+      loaded.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      loaded.needsUpdate = true;
+    });
     return texture;
   }
 }

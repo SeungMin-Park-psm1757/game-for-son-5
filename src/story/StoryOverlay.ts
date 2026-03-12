@@ -1,4 +1,4 @@
-import { PORTRAITS } from '../data/portraits';
+import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
 import { element } from '../ui/dom';
 import type { StoryEvent } from './types';
 
@@ -112,7 +112,12 @@ export class StoryOverlay {
     const info = PORTRAITS[key];
     portrait.style.setProperty('--portrait-accent', info.accent);
     portrait.style.setProperty('--portrait-soft', info.accentSoft);
-    portrait.innerHTML = `<span>${info.initials}</span><small>${info.label}</small>`;
+    portrait.innerHTML = `
+      <div class="story-portrait-media">
+        <img src="${getPortraitImageUrl(key)}" alt="${info.label}" />
+      </div>
+      <small>${info.label}</small>
+    `;
     return portrait;
   }
 }

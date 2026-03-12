@@ -1,5 +1,5 @@
 import { CHAPTER_MODE_IDS, getModeConfig } from '../data/modes';
-import { PORTRAITS } from '../data/portraits';
+import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
 import { getRecentRecords, getTopScoreRecords, getTopXRecords, sortByScore } from '../data/records';
 import type { AppSettings, MatchRecord, ModeId } from '../types';
 import { element, formatDate, formatPercent, type ScreenController } from './dom';
@@ -65,15 +65,8 @@ function createStage(options: HomeOptions): {
     <p class="home-stage-subtitle">가족 응원을 등에 업고, 한국에서 시작해 일본과 미국까지 기록을 올려보세요.</p>
   `;
 
-  const commentCard = element('div', 'home-stage-comment');
-  commentCard.style.setProperty('--portrait-accent', PORTRAITS[options.homeComment.portraitKey].accent);
-  commentCard.innerHTML = `
-    <span>${PORTRAITS[options.homeComment.portraitKey].initials}</span>
-    <div>
-      <strong>${options.homeComment.speaker}</strong>
-      <p>${options.homeComment.text}</p>
-    </div>
-  `;
+  const commentCard = createCommentCard(options.homeComment);
+  const familyRail = createFamilyPhotoRail();
 
   const recordRibbon = element('div', 'home-stage-ribbon');
   const best = sortByScore(options.records)[0];
@@ -89,8 +82,45 @@ function createStage(options: HomeOptions): {
   const settingsButton = element('button', 'secondary-button dock-button', '설정');
   dock.append(startButton, hallButton, settingsButton);
 
-  shell.append(atmosphere, header, commentCard, recordRibbon, dock);
+  shell.append(atmosphere, header, commentCard, familyRail, recordRibbon, dock);
   return { element: shell, startButton, hallButton, settingsButton };
+}
+
+function createCommentCard(comment: HomeOptions['homeComment']): HTMLElement {
+  const card = element('div', 'home-stage-comment');
+  const info = PORTRAITS[comment.portraitKey];
+  card.style.setProperty('--portrait-accent', info.accent);
+  card.style.setProperty('--portrait-soft', info.accentSoft);
+  card.innerHTML = `
+    <div class="home-stage-comment-photo-wrap">
+      <img class="home-stage-comment-photo" src="${getPortraitImageUrl(comment.portraitKey)}" alt="${info.label}" />
+    </div>
+    <div>
+      <strong>${comment.speaker}</strong>
+      <p>${comment.text}</p>
+    </div>
+  `;
+  return card;
+}
+
+function createFamilyPhotoRail(): HTMLElement {
+  const rail = element('div', 'family-photo-rail');
+  (Object.keys(PORTRAITS) as Array<keyof typeof PORTRAITS>).forEach((key, index) => {
+    const info = PORTRAITS[key];
+    const card = element('div', 'family-photo-card');
+    card.style.setProperty('--portrait-accent', info.accent);
+    card.style.setProperty('--portrait-soft', info.accentSoft);
+    card.style.setProperty('--photo-tilt', `${index % 2 === 0 ? -1 : 1}`);
+    card.innerHTML = `
+      <div class="family-photo-card-stack"></div>
+      <div class="family-photo-card-frame">
+        <img src="${getPortraitImageUrl(key)}" alt="${info.label}" />
+      </div>
+      <strong>${info.label}</strong>
+    `;
+    rail.append(card);
+  });
+  return rail;
 }
 
 function createStartSheet(options: HomeOptions): { element: HTMLElement; open: () => void } {
@@ -145,7 +175,7 @@ function createModeCard(modeId: ModeId, options: HomeOptions, helperText: string
     <div class="start-mode-copy">
       <strong>${mode.title}</strong>
       <small>${mode.subtitle}</small>
-      <p>${unlocked ? helperText : helperText}</p>
+      <p>${helperText}</p>
     </div>
     <span class="start-mode-arrow">${unlocked ? '시작' : '잠김'}</span>
   `;
