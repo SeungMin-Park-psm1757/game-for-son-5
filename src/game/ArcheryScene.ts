@@ -22,7 +22,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-import { TARGET_CENTER_Y, TARGET_DISTANCE } from './Ballistics';
+import { resolveAimPoint, TARGET_CENTER_Y, TARGET_DISTANCE } from './Ballistics';
 import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
 import type { AimSnapshot } from '../input/types';
 
@@ -383,9 +383,10 @@ export class ArcheryScene {
   }
 
   private updateCamera(snapshot: AimSnapshot, scopeRatio: number): void {
+    const aimPoint = resolveAimPoint(snapshot.yaw, snapshot.pitch);
     const target = new Vector3(
-      Math.sin(snapshot.yaw * 0.05) * TARGET_DISTANCE * 0.34,
-      TARGET_CENTER_Y + Math.sin(snapshot.pitch * 0.055) * 2.9,
+      aimPoint.targetX,
+      TARGET_CENTER_Y + aimPoint.targetY,
       -TARGET_DISTANCE,
     );
     const targetFov = Math.max(10, 64 - scopeRatio * 57);
