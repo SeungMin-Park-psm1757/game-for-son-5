@@ -10,11 +10,12 @@ interface ResultScreenOptions {
 
 export function createResultScreen(options: ResultScreenOptions): ScreenController {
   const { summary } = options;
+  const mode = getModeConfig(summary.record.mode);
   const screen = element('section', 'screen result-screen');
   const hero = element('div', 'panel result-hero');
   hero.innerHTML = `
     <span class="eyebrow">경기 결과</span>
-    <h1 class="hero-title">${getModeConfig(summary.record.mode).title}</h1>
+    <h1 class="hero-title">${mode.badgeEmoji} ${mode.title}</h1>
     <p class="hero-subtitle">${summary.record.totalScore}점 · X ${summary.record.xCount} · ${formatDate(summary.record.timestamp)}</p>
   `;
 
@@ -34,10 +35,10 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
   overview.innerHTML = `
     <h2 class="section-title">요약</h2>
     <div class="comparison-grid">
+      <div class="comparison-card"><span>챕터</span><strong>${mode.locationLabel}</strong></div>
       <div class="comparison-card"><span>안정도</span><strong>${formatPercent(summary.record.averageStability)}</strong></div>
       <div class="comparison-card"><span>릴리스</span><strong>${formatPercent(summary.record.averageReleaseQuality)}</strong></div>
       <div class="comparison-card"><span>명예의 전당</span><strong>#${summary.hallOfFameRank}</strong></div>
-      <div class="comparison-card"><span>바람</span><strong>${summary.record.windSummary}</strong></div>
     </div>
   `;
 
@@ -57,12 +58,13 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
   status.innerHTML = `
     <h2 class="section-title">기록 반영</h2>
     <p>${summary.isPersonalBest ? '개인 최고 기록이 갱신되었습니다.' : '이번 기록도 명예의 전당에 저장되었습니다.'}</p>
-    <p>${summary.unlockedMode ? '72발 랭킹 라운드 확장 준비가 열렸습니다.' : '지금은 6발과 12발 중심으로 반복 플레이를 즐길 수 있습니다.'}</p>
+    <p>${summary.unlockedMode ? `${getModeConfig(summary.unlockedMode).title}가 새로 열렸습니다.` : '다음 경기에서 더 높은 기록에 도전해보세요.'}</p>
+    <p>바람 요약 · ${summary.record.windSummary}</p>
   `;
 
   stats.append(overview, arrows, status);
   const actions = element('div', 'action-row');
-  const rematch = element('button', 'primary-button', '다시 도전');
+  const rematch = element('button', 'primary-button', '다시 경기');
   const home = element('button', 'secondary-button', '홈으로');
   rematch.addEventListener('click', options.onRematch);
   home.addEventListener('click', options.onHome);

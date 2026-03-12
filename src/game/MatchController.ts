@@ -1,4 +1,4 @@
-import { getModeConfig, getResultBand, shouldUnlockRanking72 } from '../data/modes';
+import { getModeConfig, getResultBand, getUnlockedNextMode } from '../data/modes';
 import { getScoreRank, isPersonalBest } from '../data/records';
 import { DesktopAimInput } from '../input/DesktopAimInput';
 import { TouchAimInput } from '../input/TouchAimInput';
@@ -8,7 +8,7 @@ import { HapticsService } from '../services/HapticsService';
 import type { StoryTrigger } from '../story/types';
 import type { AppSettings, CalibrationProfile, MatchRecord, ModeId } from '../types';
 import { element, type ScreenController } from '../ui/dom';
-import { MatchHUD } from '../ui/MatchHUD';
+import { MatchHUD, type MatchImpactBriefing } from '../ui/MatchHUD';
 import { simulateArrowFlight } from './Ballistics';
 import { ArcheryScene } from './ArcheryScene';
 import { scoreTarget } from './Scoring';
@@ -40,9 +40,9 @@ export class MatchController implements ScreenController {
   private readonly mode;
   private readonly sceneHost = element('div', 'match-scene');
   private readonly pauseOverlay = element('div', 'pause-overlay');
-  private readonly windSystem = new WindSystem();
   private readonly hud: MatchHUD;
   private readonly scene: ArcheryScene;
+  private readonly windSystem: WindSystem;
   private adapter: AimInputAdapter | null = null;
   private frameHandle = 0;
   private drawStartedAt = 0;
@@ -53,7 +53,7 @@ export class MatchController implements ScreenController {
   private arrowIndex = 0;
   private totalScore = 0;
   private xCount = 0;
-  private currentWind = this.windSystem.next(0);
+  private currentWind = 0;
   private readonly arrowScores: number[] = [];
   private readonly stabilitySamples: number[] = [];
   private readonly releaseSamples: number[] = [];
@@ -63,9 +63,14 @@ export class MatchController implements ScreenController {
   private seenBullseye = false;
   private readonly startedAt = Date.now();
   private arrowPatternSeed = Math.random() * Math.PI * 2;
+  private impactBriefing: MatchImpactBriefing | null = null;
+  private impactBriefingUntil = 0;
 
   constructor(private readonly options: MatchControllerOptions) {
     this.mode = getModeConfig(this.options.modeId);
+    this.windSystem = new WindSystem(this.mode.windDrift, this.mode.windClamp);
+    this.currentWind = this.windSystem.next(0);
+
     const root = element('section', 'screen match-screen');
     const surface = element('div', 'match-surface');
     this.hud = new MatchHUD({
@@ -129,7 +134,7 @@ export class MatchController implements ScreenController {
 
     event.preventDefault();
     this.activeDrawPointerId = event.pointerId;
-    this.sceneHost.setPointerCapture?.(event.pointerId);
+    safeSetPointerCapture(this.sceneHost, event.pointerId);
     this.beginDraw();
   };
 
@@ -140,7 +145,7 @@ export class MatchController implements ScreenController {
 
     event.preventDefault();
     this.activeDrawPointerId = null;
-    this.sceneHost.releasePointerCapture?.(event.pointerId);
+    safeReleasePointerCapture(this.sceneHost, event.pointerId);
     void this.releaseDraw();
   };
 
@@ -150,7 +155,7 @@ export class MatchController implements ScreenController {
     }
 
     this.activeDrawPointerId = null;
-    this.sceneHost.releasePointerCapture?.(event.pointerId);
+    safeReleasePointerCapture(this.sceneHost, event.pointerId);
     this.cancelDraw();
   };
 
@@ -181,7 +186,8 @@ export class MatchController implements ScreenController {
   }
 
   private loop = () => {
-    const frame = this.composeAimFrame(performance.now());
+    const now = performance.now();
+    const frame = this.composeAimFrame(now);
 
     if (this.drawing) {
       this.drawStabilityWindow.push(frame.effectiveStability);
@@ -190,13 +196,18 @@ export class MatchController implements ScreenController {
       }
     }
 
+    if (this.impactBriefing && now >= this.impactBriefingUntil) {
+      this.impactBriefing = null;
+    }
+
     const drawVisualRatio = Math.min(frame.drawDuration / 0.92, 1);
-    const scopeRatio = this.drawing ? Math.min(frame.drawDuration / 0.28, 1) : 0;
+    const scopeRatio = this.drawing ? Math.min(frame.drawDuration / 0.24, 1) : 0;
     if (!this.paused) {
       this.scene.frame(frame.snapshot, drawVisualRatio, scopeRatio);
     }
 
     this.hud.update({
+      modeLabel: `${this.mode.badgeEmoji} ${this.mode.shortTitle}`,
       arrowIndex: this.arrowIndex,
       arrowCount: this.mode.arrowCount,
       totalScore: this.totalScore,
@@ -208,6 +219,7 @@ export class MatchController implements ScreenController {
       tension: frame.tension,
       releaseTiming: frame.releaseTiming,
       drawing: this.drawing,
+      impactBriefing: this.impactBriefing,
     });
 
     this.frameHandle = window.requestAnimationFrame(this.loop);
@@ -236,7 +248,7 @@ export class MatchController implements ScreenController {
       aimYaw: frame.snapshot.yaw,
       aimPitch: frame.snapshot.pitch,
       drawDuration: Math.max(0.35, frame.drawDuration),
-      wind: this.currentWind,
+      wind: this.currentWind * this.mode.windInfluence,
       stability,
       releaseQuality,
     });
@@ -259,6 +271,8 @@ export class MatchController implements ScreenController {
     this.releaseSamples.push(releaseQuality);
     this.lowScoreStreak = shotScore.score <= 5 ? this.lowScoreStreak + 1 : 0;
     this.arrowIndex += 1;
+    this.impactBriefing = createImpactBriefing(this.mode.locationLabel, shotScore.score, shotScore.isX, shotScore.hitX, shotScore.hitY);
+    this.impactBriefingUntil = performance.now() + 2000;
 
     if (shotScore.score === 10 && !this.seenTen) {
       this.seenTen = true;
@@ -309,7 +323,7 @@ export class MatchController implements ScreenController {
       record,
       isPersonalBest: isPersonalBest(record, this.options.records),
       hallOfFameRank: getScoreRank(record, this.options.records),
-      unlockedMode: shouldUnlockRanking72(this.mode.id, this.totalScore) ? 'ranking72' : null,
+      unlockedMode: getUnlockedNextMode(this.mode.id, this.totalScore),
       resultBand,
     };
 
@@ -368,7 +382,7 @@ export class MatchController implements ScreenController {
 
     const time = now / 1000;
     const tension = clamp(drawDuration / 1.38, 0, 1.08);
-    const amplitude = (0.004 + tension * 0.025) * (1.02 - baseStability * 0.18);
+    const amplitude = (0.004 + tension * 0.025) * (1.02 - baseStability * 0.18) * this.mode.tremorMultiplier;
     const offsetYaw =
       Math.sin(time * 8.4 + this.arrowPatternSeed) * amplitude +
       Math.sin(time * 12.6 + this.arrowPatternSeed * 0.5) * amplitude * 0.38;
@@ -408,10 +422,78 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function createImpactBriefing(locationLabel: string, score: number, isX: boolean, hitX: number, hitY: number): MatchImpactBriefing {
+  if (score <= 0) {
+    return {
+      tag: '속보',
+      headline: `${locationLabel} 경기 판정`,
+      detail: '표적 바깥',
+      scoreText: 'MISS',
+      isHighlight: false,
+    };
+  }
+
+  return {
+    tag: '속보',
+    headline: `${locationLabel} 경기 판정`,
+    detail: `${describeImpactZone(hitX, hitY)} ${describeRing(score, isX)}`,
+    scoreText: isX ? 'X' : `${score}점`,
+    isHighlight: score >= 9,
+  };
+}
+
+function describeRing(score: number, isX: boolean): string {
+  if (isX) {
+    return '정중앙 X링';
+  }
+  if (score >= 9) {
+    return '골드 링';
+  }
+  if (score >= 7) {
+    return '레드 링';
+  }
+  if (score >= 5) {
+    return '블루 링';
+  }
+  if (score >= 3) {
+    return '블랙 링';
+  }
+  return '화이트 링';
+}
+
+function describeImpactZone(hitX: number, hitY: number): string {
+  const distance = Math.hypot(hitX, hitY);
+  if (distance < 0.08) {
+    return '중앙';
+  }
+
+  const horizontal = Math.abs(hitX) > 0.08 ? (hitX > 0 ? '우' : '좌') : '';
+  const vertical = Math.abs(hitY) > 0.08 ? (hitY > 0 ? '상' : '하') : '';
+  return `${horizontal}${vertical || '측'}단`;
+}
+
 function createRecordId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
 
   return `record-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+}
+
+function safeSetPointerCapture(node: HTMLElement, pointerId: number): void {
+  try {
+    node.setPointerCapture?.(pointerId);
+  } catch {
+    // Some browsers and synthetic input paths reject capture when the pointer is not active yet.
+  }
+}
+
+function safeReleasePointerCapture(node: HTMLElement, pointerId: number): void {
+  try {
+    if (!node.hasPointerCapture || node.hasPointerCapture(pointerId)) {
+      node.releasePointerCapture?.(pointerId);
+    }
+  } catch {
+    // Ignore capture release failures so a missed pointer does not crash the whole app.
+  }
 }

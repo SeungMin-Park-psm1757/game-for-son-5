@@ -1,35 +1,35 @@
-import { getModeConfig } from '../data/modes';
-import { PORTRAITS, type PortraitKey } from '../data/portraits';
+import { CHAPTER_MODE_IDS, getModeConfig } from '../data/modes';
+import { PORTRAITS } from '../data/portraits';
 import { getRecentRecords, getTopScoreRecords, getTopXRecords, sortByScore } from '../data/records';
-import type { AppSettings, MatchRecord } from '../types';
+import type { AppSettings, MatchRecord, ModeId } from '../types';
 import { element, formatDate, formatPercent, type ScreenController } from './dom';
 
 interface HomeOptions {
   records: MatchRecord[];
   settings: AppSettings;
+  unlockedModes: ModeId[];
   homeComment: {
     speaker: string;
     portraitKey: keyof typeof PORTRAITS;
     text: string;
   };
-  ranking72Unlocked: boolean;
-  onPractice: () => void;
-  onChallenge: () => void;
+  onStartMode: (mode: ModeId) => void;
   onSettings: () => void;
   onResetHoldComplete: () => void;
 }
 
 export function createHomeHallOfFame(options: HomeOptions): ScreenController {
-  const screen = element('section', 'screen home-screen');
-  const shell = element('div', 'home-shell');
-  const topbar = createTopbar(options);
-  const hero = createHero(options);
+  const screen = element('section', 'screen home-screen home-stage-screen');
+  const stage = createStage(options);
+  const startSheet = createStartSheet(options);
   const hallModal = createHallModal(options.records);
   const resetButton = createResetButton(options.onResetHoldComplete);
 
-  hero.hallButton.addEventListener('click', hallModal.open);
-  shell.append(topbar, hero.element, createCoachNote());
-  screen.append(shell, hallModal.element, resetButton);
+  stage.startButton.addEventListener('click', startSheet.open);
+  stage.hallButton.addEventListener('click', hallModal.open);
+  stage.settingsButton.addEventListener('click', options.onSettings);
+
+  screen.append(stage.element, startSheet.element, hallModal.element, resetButton);
 
   return {
     element: screen,
@@ -39,137 +39,134 @@ export function createHomeHallOfFame(options: HomeOptions): ScreenController {
   };
 }
 
-function createTopbar(options: HomeOptions): HTMLElement {
-  const topbar = element('header', 'home-topbar');
-  const brand = element('div', 'home-brand');
-  const brandKicker = element('span', 'home-brand-kicker', 'Family Archery 3D');
-  const brandName = element('strong', 'home-brand-name', '가족이 응원하는 국궁 챌린지');
-  brand.append(brandKicker, brandName);
-
-  const meta = element('div', 'home-topbar-meta');
-  const profile = element('span', 'topbar-pill', options.settings.profileName);
-  const ready = element('span', 'topbar-pill');
-  ready.textContent = options.ranking72Unlocked ? '랭킹 라운드 준비 완료' : '터치 조준 바로 시작';
-  const settings = element('button', 'topbar-icon-button', '설정');
-  settings.addEventListener('click', options.onSettings);
-  meta.append(profile, ready, settings);
-
-  topbar.append(brand, meta);
-  return topbar;
-}
-
-function createHero(options: HomeOptions): { element: HTMLElement; hallButton: HTMLButtonElement } {
-  const best = sortByScore(options.records)[0];
-  const latest = getRecentRecords(options.records, 1)[0];
-  const hero = element('section', 'home-hero-card');
-  const copy = element('div', 'home-hero-copy');
-  const kicker = element('span', 'hero-kicker', 'Warm-up Free Start');
-  const title = element('h1', 'home-display', '손끝으로 조준하고, 흔들림이 모일 때 놓으세요');
-  const lead = element(
-    'p',
-    'home-lead',
-    '휴대폰 화면을 드래그해 과녁을 맞추고, 홀드 중 커지는 떨림이 잠깐 잠잠해지는 순간에 화살을 놓는 모바일 3D 국궁 게임입니다.',
-  );
-
-  const actions = element('div', 'home-action-row');
-  const challengeButton = element('button', 'primary-button hero-button', '대표 선발전 12발');
-  const practiceButton = element('button', 'secondary-button hero-button', '연습장 6발');
-  const hallButton = element('button', 'secondary-button hero-button hall-button', '명예의 전당 보기');
-  challengeButton.addEventListener('click', options.onChallenge);
-  practiceButton.addEventListener('click', options.onPractice);
-  actions.append(challengeButton, practiceButton, hallButton);
-
-  const metrics = element('div', 'hero-metric-row');
-  metrics.append(
-    createMetricCard('개인 최고', best ? `${best.totalScore}점` : '기록 없음', best ? `X ${best.xCount}` : '첫 경기를 시작해보세요'),
-    createMetricCard('최근 경기', latest ? `${latest.totalScore}점` : '아직 없음', latest ? formatDate(latest.timestamp) : '명예의 전당이 비어 있어요'),
-    createMetricCard('누적 경기', `${options.records.length}회`, options.ranking72Unlocked ? '72발 모드 해금 가능' : '12발 모드 중심으로 손맛 확인'),
-  );
-
-  const familyRow = element('div', 'family-lineup');
-  familyRow.append(
-    createFamilyPill('char_dad', '아빠'),
-    createFamilyPill('char_mom', '엄마'),
-    createFamilyPill('char_seyeon', '세연'),
-    createFamilyPill('char_jeongwoo', '정우'),
-  );
-
-  copy.append(kicker, title, lead, actions, metrics, familyRow);
-
-  const visual = element('div', 'hero-visual-card');
-  visual.append(createTargetDisplay(options.homeComment), createQuickRules());
-  hero.append(copy, visual);
-
-  return { element: hero, hallButton };
-}
-
-function createTargetDisplay(comment: HomeOptions['homeComment']): HTMLElement {
-  const visual = element('div', 'hero-visual');
-  const glow = element('div', 'target-glow');
-  const target = element('div', 'target-rings');
-  for (let ring = 0; ring < 5; ring += 1) {
-    target.append(element('span', 'target-ring'));
-  }
-  const bullseye = element('div', 'target-bullseye');
-  const arrow = element('div', 'hero-arrow');
-  visual.append(glow, target, bullseye, arrow);
-
-  const quote = element('div', 'hero-quote');
-  quote.style.setProperty('--portrait-accent', PORTRAITS[comment.portraitKey].accent);
-  quote.innerHTML = `<strong>${comment.speaker}</strong><p>${comment.text}</p>`;
-
-  const badge = element('div', 'hero-mini-badge');
-  badge.innerHTML = `
-    <span>조준 방식</span>
-    <strong>화면 드래그 + 릴리스 타이밍</strong>
-    <small>싱크 없이 바로 시작</small>
+function createStage(options: HomeOptions): {
+  element: HTMLElement;
+  startButton: HTMLButtonElement;
+  hallButton: HTMLButtonElement;
+  settingsButton: HTMLButtonElement;
+} {
+  const shell = element('div', 'home-stage-shell');
+  const atmosphere = element('div', 'home-stage-atmosphere');
+  atmosphere.innerHTML = `
+    <div class="home-stage-haze"></div>
+    <div class="home-stage-target"></div>
+    <div class="home-stage-target-shadow"></div>
+    <div class="home-stage-archer"></div>
+    <div class="home-stage-bow"></div>
+    <div class="home-stage-arrow"></div>
+    <div class="home-stage-flag home-stage-flag-left"></div>
+    <div class="home-stage-flag home-stage-flag-right"></div>
   `;
 
-  const wrap = element('div', 'hero-visual-stack');
-  wrap.append(visual, quote, badge);
-  return wrap;
+  const header = element('div', 'home-stage-header');
+  header.innerHTML = `
+    <span class="eyebrow">Family Archery 3D</span>
+    <h1 class="home-stage-title">국궁 월드 투어</h1>
+    <p class="home-stage-subtitle">가족 응원을 등에 업고, 한국에서 시작해 일본과 미국까지 기록을 올려보세요.</p>
+  `;
+
+  const commentCard = element('div', 'home-stage-comment');
+  commentCard.style.setProperty('--portrait-accent', PORTRAITS[options.homeComment.portraitKey].accent);
+  commentCard.innerHTML = `
+    <span>${PORTRAITS[options.homeComment.portraitKey].initials}</span>
+    <div>
+      <strong>${options.homeComment.speaker}</strong>
+      <p>${options.homeComment.text}</p>
+    </div>
+  `;
+
+  const recordRibbon = element('div', 'home-stage-ribbon');
+  const best = sortByScore(options.records)[0];
+  const latest = getRecentRecords(options.records, 1)[0];
+  recordRibbon.innerHTML = `
+    <span>🏹 최고 ${best ? `${getModeConfig(best.mode).locationLabel} ${best.totalScore}점` : '기록 없음'}</span>
+    <span>✨ 최근 ${latest ? `${getModeConfig(latest.mode).locationLabel} ${latest.totalScore}점` : '아직 없음'}</span>
+  `;
+
+  const dock = element('nav', 'home-menu-dock');
+  const startButton = element('button', 'primary-button dock-button', '게임 시작');
+  const hallButton = element('button', 'secondary-button dock-button', '명예의 전당');
+  const settingsButton = element('button', 'secondary-button dock-button', '설정');
+  dock.append(startButton, hallButton, settingsButton);
+
+  shell.append(atmosphere, header, commentCard, recordRibbon, dock);
+  return { element: shell, startButton, hallButton, settingsButton };
 }
 
-function createQuickRules(): HTMLElement {
-  const panel = element('div', 'hero-rules');
-  panel.append(
-    createRule('1', '화면 드래그', '과녁 중앙을 향해 시점을 잡습니다.'),
-    createRule('2', '홀드로 당기기', '오래 당길수록 떨림과 긴장감이 커집니다.'),
-    createRule('3', '정확한 순간 릴리스', '흔들림이 중앙으로 모일 때 놓으면 10점권이 열립니다.'),
+function createStartSheet(options: HomeOptions): { element: HTMLElement; open: () => void } {
+  const scrim = element('div', 'modal-scrim start-sheet-scrim');
+  scrim.hidden = true;
+  const sheet = element('div', 'start-sheet-card');
+  const header = element('div', 'start-sheet-header');
+  header.innerHTML = `
+    <div>
+      <span class="eyebrow">Game Start</span>
+      <h2 class="section-title">모드를 선택하세요</h2>
+    </div>
+  `;
+  const closeButton = element('button', 'topbar-icon-button', '닫기');
+  header.append(closeButton);
+
+  const list = element('div', 'start-sheet-list');
+  list.append(
+    createModeCard('practice6', options, '가볍게 손풀기'),
+    ...CHAPTER_MODE_IDS.map((modeId) => createModeCard(modeId, options, getChapterRequirement(modeId, options.unlockedModes))),
   );
-  return panel;
+
+  sheet.append(header, list);
+  scrim.append(sheet);
+
+  const close = () => {
+    scrim.hidden = true;
+  };
+
+  closeButton.addEventListener('click', close);
+  scrim.addEventListener('click', (event) => {
+    if (event.target === scrim) {
+      close();
+    }
+  });
+
+  return {
+    element: scrim,
+    open: () => {
+      scrim.hidden = false;
+    },
+  };
 }
 
-function createRule(step: string, title: string, text: string): HTMLElement {
-  const row = element('div', 'hero-rule');
-  const badge = element('span', 'hero-rule-step', step);
-  const body = element('div', 'hero-rule-body');
-  body.innerHTML = `<strong>${title}</strong><p>${text}</p>`;
-  row.append(badge, body);
-  return row;
-}
+function createModeCard(modeId: ModeId, options: HomeOptions, helperText: string): HTMLElement {
+  const mode = getModeConfig(modeId);
+  const card = element('button', 'start-mode-card');
+  const unlocked = !mode.isChallenge || options.unlockedModes.includes(modeId);
+  card.disabled = !unlocked;
+  card.innerHTML = `
+    <span class="start-mode-emoji">${mode.badgeEmoji}</span>
+    <div class="start-mode-copy">
+      <strong>${mode.title}</strong>
+      <small>${mode.subtitle}</small>
+      <p>${unlocked ? helperText : helperText}</p>
+    </div>
+    <span class="start-mode-arrow">${unlocked ? '시작' : '잠김'}</span>
+  `;
 
-function createMetricCard(label: string, value: string, detail: string): HTMLElement {
-  const card = element('div', 'hero-metric-card');
-  card.innerHTML = `<span>${label}</span><strong>${value}</strong><small>${detail}</small>`;
+  card.addEventListener('click', () => {
+    if (unlocked) {
+      options.onStartMode(modeId);
+    }
+  });
+
   return card;
 }
 
-function createFamilyPill(key: PortraitKey, name: string): HTMLElement {
-  const pill = element('div', 'family-pill');
-  pill.style.setProperty('--portrait-accent', PORTRAITS[key].accent);
-  pill.style.setProperty('--portrait-soft', PORTRAITS[key].accentSoft);
-  pill.innerHTML = `<span>${PORTRAITS[key].initials}</span><strong>${name}</strong>`;
-  return pill;
-}
-
-function createCoachNote(): HTMLElement {
-  const note = element('div', 'coach-note');
-  note.innerHTML = `
-    <strong>오늘의 한 줄 팁</strong>
-    <span>드래그로 먼저 중앙을 만들고, 발사는 조급하게 하지 말고 떨림이 모이는 박자를 기다려보세요.</span>
-  `;
-  return note;
+function getChapterRequirement(modeId: ModeId, unlockedModes: ModeId[]): string {
+  const mode = getModeConfig(modeId);
+  if (unlockedModes.includes(modeId)) {
+    return mode.description;
+  }
+  return modeId === 'chapterJapan9'
+    ? '한국 경기에서 66점 이상을 기록하면 열립니다.'
+    : '일본 경기에서 72점 이상을 기록하면 열립니다.';
 }
 
 function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: () => void } {
@@ -178,24 +175,23 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
   const card = element('div', 'hall-modal-card');
   const header = element('div', 'hall-modal-header');
   const titleBlock = element('div', 'hall-modal-title');
-  titleBlock.innerHTML = `<span>Hall of Fame</span><h2>기록 세부 보기</h2>`;
+  titleBlock.innerHTML = `<span>Hall of Fame</span><h2>명예의 전당</h2>`;
   const closeButton = element('button', 'topbar-icon-button hall-close-button', '닫기');
-  closeButton.type = 'button';
   header.append(titleBlock, closeButton);
 
   const overview = element('div', 'hall-overview-row');
   const best = sortByScore(records)[0];
   const recent = getRecentRecords(records, 1)[0];
   overview.append(
-    createOverviewCard('최고 점수', best ? `${best.totalScore}점` : '기록 없음', best ? `X ${best.xCount}` : '첫 플레이를 기다리는 중'),
-    createOverviewCard('최근 경기', recent ? `${recent.totalScore}점` : '아직 없음', recent ? formatDate(recent.timestamp) : '경기를 시작하면 여기에 쌓입니다'),
-    createOverviewCard('평균 안정도', records.length ? formatPercent(average(records.map((record) => record.averageStability))) : '-', records.length ? '최근까지 누적 평균' : '아직 샘플이 없어요'),
+    createOverviewCard('개인 최고', best ? `${getModeConfig(best.mode).locationLabel} ${best.totalScore}점` : '기록 없음', best ? `X ${best.xCount}` : '첫 경기를 기다리고 있어요'),
+    createOverviewCard('최근 경기', recent ? `${getModeConfig(recent.mode).locationLabel} ${recent.totalScore}점` : '아직 없음', recent ? formatDate(recent.timestamp) : '첫 경기가 저장되면 여기에 나타납니다'),
+    createOverviewCard('평균 안정도', records.length ? formatPercent(average(records.map((record) => record.averageStability))) : '-', records.length ? '전체 경기 평균' : '아직 데이터가 없어요'),
   );
 
   const grid = element('div', 'hall-grid');
   grid.append(
-    createLeaderboardPanel('최고 점수 Top 5', getTopScoreRecords(records, 5), (record) => `${record.totalScore}점 / X ${record.xCount}`),
-    createLeaderboardPanel('최다 X Top 5', getTopXRecords(records, 5), (record) => `X ${record.xCount} / ${record.totalScore}점`),
+    createLeaderboardPanel('최고 점수 Top 5', getTopScoreRecords(records, 5), (record) => `${record.totalScore}점`),
+    createLeaderboardPanel('최다 X Top 5', getTopXRecords(records, 5), (record) => `X ${record.xCount}`),
     createRecentPanel(getRecentRecords(records, 10)),
     createComparisonPanel(records),
   );
@@ -203,20 +199,14 @@ function createHallModal(records: MatchRecord[]): { element: HTMLElement; open: 
   card.append(header, overview, grid);
   scrim.append(card);
 
-  const close = (event?: Event) => {
-    event?.preventDefault();
-    event?.stopPropagation();
+  const close = () => {
     scrim.hidden = true;
   };
 
-  card.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
   closeButton.addEventListener('click', close);
-  closeButton.addEventListener('pointerup', close);
   scrim.addEventListener('click', (event) => {
     if (event.target === scrim) {
-      close(event);
+      close();
     }
   });
 
@@ -239,17 +229,18 @@ function createLeaderboardPanel(titleText: string, records: MatchRecord[], label
   const title = element('h3', 'section-title', titleText);
 
   if (records.length === 0) {
-    panel.append(title, element('p', 'muted-text', '아직 비어 있어요. 첫 경기로 명예의 전당을 채워보세요.'));
+    panel.append(title, element('p', 'muted-text', '첫 경기 기록이 들어오면 여기부터 차곡차곡 채워집니다.'));
     return panel;
   }
 
   const list = element('ol', 'leaderboard-list');
   records.forEach((record, index) => {
+    const mode = getModeConfig(record.mode);
     const item = element('li', 'leaderboard-item');
     item.innerHTML = `
       <span>#${index + 1}</span>
-      <strong>${label(record)}</strong>
-      <small>${getModeConfig(record.mode).title} · ${formatDate(record.timestamp)}</small>
+      <strong>${mode.badgeEmoji} ${mode.locationLabel} · ${label(record)}</strong>
+      <small>${mode.shortTitle} · ${formatDate(record.timestamp)}</small>
     `;
     list.append(item);
   });
@@ -260,18 +251,19 @@ function createLeaderboardPanel(titleText: string, records: MatchRecord[], label
 
 function createRecentPanel(records: MatchRecord[]): HTMLElement {
   const panel = element('section', 'panel hall-section');
-  const title = element('h3', 'section-title', '최근 10경기');
+  const title = element('h3', 'section-title', '최근 경기');
 
   if (records.length === 0) {
-    panel.append(title, element('p', 'muted-text', '아직 최근 경기 기록이 없습니다.'));
+    panel.append(title, element('p', 'muted-text', '최근 경기 기록이 아직 없습니다.'));
     return panel;
   }
 
   const list = element('div', 'recent-list');
   records.forEach((record) => {
+    const mode = getModeConfig(record.mode);
     const item = element('article', 'recent-item');
     item.innerHTML = `
-      <strong>${getModeConfig(record.mode).title}</strong>
+      <strong>${mode.badgeEmoji} ${mode.title}</strong>
       <span>${record.totalScore}점 · X ${record.xCount}</span>
       <small>안정도 ${formatPercent(record.averageStability)} · 릴리스 ${formatPercent(record.averageReleaseQuality)}</small>
     `;
@@ -289,15 +281,15 @@ function createComparisonPanel(records: MatchRecord[]): HTMLElement {
   const recent = getRecentRecords(records, 1)[0];
 
   if (!best || !recent) {
-    panel.append(title, element('p', 'muted-text', '경기를 한 번 마치면 비교 카드가 열립니다.'));
+    panel.append(title, element('p', 'muted-text', '두 경기 이상 쌓이면 비교 카드가 열립니다.'));
     return panel;
   }
 
   const grid = element('div', 'comparison-grid');
   const bestCard = element('div', 'comparison-card');
-  bestCard.innerHTML = `<span>PB</span><strong>${best.totalScore}점</strong><small>X ${best.xCount} · 안정도 ${formatPercent(best.averageStability)}</small>`;
+  bestCard.innerHTML = `<span>PB</span><strong>${getModeConfig(best.mode).locationLabel} ${best.totalScore}점</strong><small>X ${best.xCount} · 안정도 ${formatPercent(best.averageStability)}</small>`;
   const recentCard = element('div', 'comparison-card');
-  recentCard.innerHTML = `<span>최근</span><strong>${recent.totalScore}점</strong><small>X ${recent.xCount} · 릴리스 ${formatPercent(recent.averageReleaseQuality)}</small>`;
+  recentCard.innerHTML = `<span>최근</span><strong>${getModeConfig(recent.mode).locationLabel} ${recent.totalScore}점</strong><small>X ${recent.xCount} · 릴리스 ${formatPercent(recent.averageReleaseQuality)}</small>`;
   grid.append(bestCard, recentCard);
   panel.append(title, grid);
   return panel;

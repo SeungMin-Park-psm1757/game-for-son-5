@@ -9,20 +9,9 @@ export const STORY_EVENTS: StoryEvent[] = [
     trigger: { type: 'first_launch' },
     lines: [
       { speaker: '아빠', portraitKey: 'char_dad', text: '정우야, 이번엔 물고기 말고 과녁이구나.' },
-      { speaker: '엄마', portraitKey: 'char_mom', text: '점수도 중요하지만, 먼저 숨부터 맞추자.' },
-      { speaker: '세연', portraitKey: 'char_seyeon', text: '오빠, 정중앙 맞히면 내가 제일 먼저 안아줄게!' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '점수보다 먼저, 숨부터 맞추자.' },
+      { speaker: '세연', portraitKey: 'char_seyeon', text: '오빠, 오늘 첫 명중은 내가 제일 크게 박수칠게!' },
       { speaker: '정우', portraitKey: 'char_jeongwoo', text: '좋아. 우리 가족 이름으로 정중앙을 노려볼게.' },
-    ],
-  },
-  {
-    id: 'first-calibration-complete',
-    delivery: 'overlay',
-    once: true,
-    priority: 90,
-    trigger: { type: 'first_calibration_complete' },
-    lines: [
-      { speaker: '엄마', portraitKey: 'char_mom', text: '오, 자세가 잡히니까 눈빛도 달라졌네.' },
-      { speaker: '아빠', portraitKey: 'char_dad', text: '좋다. 이제 힘보다 반복이다.' },
     ],
   },
   {
@@ -31,7 +20,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     once: true,
     priority: 80,
     trigger: { type: 'first_ten' },
-    lines: [{ speaker: '세연', portraitKey: 'char_seyeon', text: '와, 딱 10점이야! 지금 느낌 좋다!' }],
+    lines: [{ speaker: '세연', portraitKey: 'char_seyeon', text: '와, 10점! 지금 손끝 감각 좋다!' }],
   },
   {
     id: 'first-bullseye-toast',
@@ -39,7 +28,7 @@ export const STORY_EVENTS: StoryEvent[] = [
     once: true,
     priority: 85,
     trigger: { type: 'first_bullseye' },
-    lines: [{ speaker: '세연', portraitKey: 'char_seyeon', text: '한가운데다! 명예의 전당 맨 위도 노려보자!' }],
+    lines: [{ speaker: '세연', portraitKey: 'char_seyeon', text: '정중앙이다! 명예의 전당 맨 위가 보이는데?' }],
   },
   {
     id: 'low-score-encourage',
@@ -48,8 +37,8 @@ export const STORY_EVENTS: StoryEvent[] = [
     priority: 70,
     trigger: { type: 'low_score_streak' },
     lines: [
-      { speaker: '엄마', portraitKey: 'char_mom', text: '괜찮아. 급하게 당기지 말고 숨부터 맞추자.' },
-      { speaker: '아빠', portraitKey: 'char_dad', text: '한 발씩 끊어가면 흐름은 다시 온다.' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '괜찮아. 급하게 놓지 말고, 떨림이 가라앉는 박자부터 보자.' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '한 발씩 끊어서 가면 흐름이 다시 온다.' },
     ],
   },
   {
@@ -59,20 +48,32 @@ export const STORY_EVENTS: StoryEvent[] = [
     priority: 88,
     trigger: { type: 'personal_best' },
     lines: [
-      { speaker: '아빠', portraitKey: 'char_dad', text: '오늘의 넌 어제의 널 이겼다.' },
-      { speaker: '세연', portraitKey: 'char_seyeon', text: '명예의 전당 맨 위로 슬금슬금 올라간다!' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '오늘의 네가 어제의 너를 이겼다.' },
+      { speaker: '세연', portraitKey: 'char_seyeon', text: '좋아! 이번 기록은 진짜 오래 남겠다.' },
     ],
   },
   {
-    id: 'ranking-mode-unlocked',
+    id: 'unlock-japan',
     delivery: 'scene',
     once: true,
     priority: 95,
-    trigger: { type: 'mode_unlocked', unlockedMode: 'ranking72' },
+    trigger: { type: 'mode_unlocked', unlockedMode: 'chapterJapan9' },
     lines: [
-      { speaker: '엄마', portraitKey: 'char_mom', text: '이제 진짜 긴 호흡의 무대가 열렸네.' },
-      { speaker: '아빠', portraitKey: 'char_dad', text: '여기서부터는 실력도 중요하지만 마음도 중요하다.' },
-      { speaker: '정우', portraitKey: 'char_jeongwoo', text: '좋아. 다음엔 끝까지 차분하게 버텨볼게.' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '한국 경기를 넘었으니, 이제 바람이 더 예민한 일본 무대야.' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '기록을 올리는 선수는 조준보다 리듬을 먼저 잡더라.' },
+      { speaker: '정우', portraitKey: 'char_jeongwoo', text: '좋아. 이번엔 더 차분하게 끌고 가볼게.' },
+    ],
+  },
+  {
+    id: 'unlock-usa',
+    delivery: 'scene',
+    once: true,
+    priority: 96,
+    trigger: { type: 'mode_unlocked', unlockedMode: 'chapterUsa9' },
+    lines: [
+      { speaker: '세연', portraitKey: 'char_seyeon', text: '미국 챕터 오픈! 이제 진짜 결승 분위기네.' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '강한 바람에서도 자세가 흐트러지지 않게만 하자.' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '여기까지 왔으면 이미 충분히 잘하고 있다. 이제 즐기자.' },
     ],
   },
   {
@@ -82,9 +83,9 @@ export const STORY_EVENTS: StoryEvent[] = [
     priority: 92,
     trigger: { type: 'match_end', resultBand: 'gold' },
     lines: [
-      { speaker: '세연', portraitKey: 'char_seyeon', text: '우와, 오늘은 거의 금빛 모드였어!' },
-      { speaker: '엄마', portraitKey: 'char_mom', text: '집중도 좋았고 흔들릴 때도 다시 돌아왔어.' },
-      { speaker: '아빠', portraitKey: 'char_dad', text: '이 정도면 다음 무대에서도 당당하겠다.' },
+      { speaker: '세연', portraitKey: 'char_seyeon', text: '오늘은 진짜 금빛이네! 화면이 다 반짝거려!' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '호흡, 자세, 릴리스까지 한 번에 맞아 들어갔어.' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '이 정도면 어느 챕터를 가도 이름이 남겠다.' },
     ],
   },
   {
@@ -94,8 +95,8 @@ export const STORY_EVENTS: StoryEvent[] = [
     priority: 91,
     trigger: { type: 'match_end', resultBand: 'silver' },
     lines: [
-      { speaker: '엄마', portraitKey: 'char_mom', text: '은빛처럼 차분하고 단단한 경기였어.' },
-      { speaker: '아빠', portraitKey: 'char_dad', text: '조금만 더 다듬으면 더 높은 곳도 충분하다.' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '은빛 기록도 충분히 멋져. 흐름이 잘 살아 있었다.' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '조금만 더 다듬으면 금빛도 멀지 않다.' },
     ],
   },
   {
@@ -105,8 +106,8 @@ export const STORY_EVENTS: StoryEvent[] = [
     priority: 90,
     trigger: { type: 'match_end', resultBand: 'bronze' },
     lines: [
-      { speaker: '아빠', portraitKey: 'char_dad', text: '오늘도 기록을 하나 더 쌓았다. 그게 제일 중요하다.' },
-      { speaker: '세연', portraitKey: 'char_seyeon', text: '반짝반짝 동빛이야! 다음엔 더 위로 가자!' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '기록은 한 발씩 쌓이는 거다. 오늘도 한 층 올라갔다.' },
+      { speaker: '세연', portraitKey: 'char_seyeon', text: '좋아! 다음 판에는 내가 더 크게 응원할게.' },
     ],
   },
   {
@@ -116,9 +117,9 @@ export const STORY_EVENTS: StoryEvent[] = [
     priority: 89,
     trigger: { type: 'match_end', resultBand: 'encourage' },
     lines: [
-      { speaker: '엄마', portraitKey: 'char_mom', text: '결과보다 더 중요한 건 끝까지 놓지 않았다는 거야.' },
-      { speaker: '아빠', portraitKey: 'char_dad', text: '가족 응원은 점수와 상관없이 계속 간다.' },
-      { speaker: '정우', portraitKey: 'char_jeongwoo', text: '응. 다음 판엔 더 차분하게 하나씩 맞혀볼게.' },
+      { speaker: '엄마', portraitKey: 'char_mom', text: '오늘 결과보다 중요한 건 끝까지 자세를 놓지 않은 거야.' },
+      { speaker: '아빠', portraitKey: 'char_dad', text: '괜찮다. 다음 경기에서 조용히 다시 올리면 된다.' },
+      { speaker: '정우', portraitKey: 'char_jeongwoo', text: '응. 다음 판에는 조금 더 천천히 맞춰볼게.' },
     ],
   },
   {
@@ -126,20 +127,20 @@ export const STORY_EVENTS: StoryEvent[] = [
     delivery: 'toast',
     priority: 10,
     trigger: { type: 'home_comment' },
-    lines: [{ speaker: '엄마', portraitKey: 'char_mom', text: '오늘은 자세가 더 차분했네.' }],
+    lines: [{ speaker: '엄마', portraitKey: 'char_mom', text: '오늘은 숨을 먼저 잡고 시작해보자.' }],
   },
   {
     id: 'home-comment-joke',
     delivery: 'toast',
     priority: 10,
     trigger: { type: 'home_comment' },
-    lines: [{ speaker: '아빠', portraitKey: 'char_dad', text: '활줄보다 마음줄부터 팽팽하게 가보자.' }],
+    lines: [{ speaker: '아빠', portraitKey: 'char_dad', text: '과녁도 결국 가족 응원에는 약하더라.' }],
   },
   {
     id: 'home-comment-hype',
     delivery: 'toast',
     priority: 10,
     trigger: { type: 'home_comment' },
-    lines: [{ speaker: '세연', portraitKey: 'char_seyeon', text: '오늘 Top 5 카드에 이름 하나 더 올리는 거야!' }],
+    lines: [{ speaker: '세연', portraitKey: 'char_seyeon', text: '오늘 Top 5 카드에 이름 하나 더 올리자!' }],
   },
 ];

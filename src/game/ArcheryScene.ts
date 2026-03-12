@@ -44,6 +44,8 @@ export class ArcheryScene {
   private readonly renderer = new WebGLRenderer({ antialias: true, alpha: true });
   private readonly resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.resize()) : null;
   private readonly bowGroup = new Group();
+  private readonly bowHand = this.createBowHand();
+  private readonly drawHand = this.createDrawHand();
   private readonly previewArrow = this.createArrow(false);
   private readonly stringLine = this.createString();
   private readonly targetPlane = new Mesh(
@@ -56,7 +58,7 @@ export class ArcheryScene {
   private currentFov = 64;
 
   constructor(private readonly host: HTMLElement, private readonly reduceMotion: boolean) {
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.4));
     this.renderer.setSize(host.clientWidth, host.clientHeight);
     this.renderer.outputColorSpace = 'srgb';
     this.host.append(this.renderer.domElement);
@@ -194,7 +196,7 @@ export class ArcheryScene {
 
     this.previewArrow.position.set(0.03, 0, -0.98);
     this.bowGroup.position.set(0.42, -0.2, -0.12);
-    this.bowGroup.add(bowLeft, bowRight, this.stringLine, this.previewArrow);
+    this.bowGroup.add(bowLeft, bowRight, this.stringLine, this.previewArrow, this.bowHand, this.drawHand);
   }
 
   private addGrandstand(side: -1 | 1): void {
@@ -263,7 +265,7 @@ export class ArcheryScene {
       TARGET_CENTER_Y + Math.sin(snapshot.pitch * 0.055) * 2.9,
       -TARGET_DISTANCE,
     );
-    const targetFov = 64 - scopeRatio * 38;
+    const targetFov = Math.max(10, 64 - scopeRatio * 57);
     this.currentFov += (targetFov - this.currentFov) * 0.18;
     this.camera.fov = this.currentFov;
     this.camera.updateProjectionMatrix();
@@ -282,6 +284,9 @@ export class ArcheryScene {
     ];
     this.stringLine.geometry.setFromPoints(points);
     this.previewArrow.visible = !this.activeShot;
+    this.drawHand.position.set(-0.02 - clamped * 0.13, -0.01, -0.89 + clamped * 0.035);
+    this.drawHand.rotation.y = -0.25 - clamped * 0.22;
+    this.drawHand.rotation.z = -0.08 + clamped * 0.04;
   }
 
   private updateShot(): void {
@@ -379,6 +384,48 @@ export class ArcheryScene {
     return group;
   }
 
+  private createBowHand(): Group {
+    const group = new Group();
+    const skin = new MeshStandardMaterial({ color: '#f0d2b3' });
+    const sleeve = new MeshStandardMaterial({ color: '#4f6f88' });
+
+    const forearm = new Mesh(new BoxGeometry(0.22, 0.16, 0.68), sleeve);
+    forearm.position.set(0.34, -0.12, -0.54);
+    forearm.rotation.y = 0.24;
+    forearm.rotation.z = -0.16;
+
+    const wrist = new Mesh(new BoxGeometry(0.16, 0.12, 0.22), skin);
+    wrist.position.set(0.18, -0.03, -0.82);
+    wrist.rotation.y = 0.18;
+
+    const hand = new Mesh(new BoxGeometry(0.13, 0.12, 0.15), skin);
+    hand.position.set(0.13, 0.01, -0.95);
+
+    group.add(forearm, wrist, hand);
+    return group;
+  }
+
+  private createDrawHand(): Group {
+    const group = new Group();
+    const skin = new MeshStandardMaterial({ color: '#f0d2b3' });
+    const sleeve = new MeshStandardMaterial({ color: '#9c4e4e' });
+
+    const forearm = new Mesh(new BoxGeometry(0.2, 0.15, 0.56), sleeve);
+    forearm.position.set(0.3, -0.11, 0.24);
+    forearm.rotation.y = -0.5;
+    forearm.rotation.z = -0.12;
+
+    const wrist = new Mesh(new BoxGeometry(0.15, 0.11, 0.2), skin);
+    wrist.position.set(0.12, -0.04, 0.06);
+    wrist.rotation.y = -0.24;
+
+    const hand = new Mesh(new BoxGeometry(0.12, 0.11, 0.14), skin);
+    hand.position.set(0.02, 0, 0);
+
+    group.add(forearm, wrist, hand);
+    return group;
+  }
+
   private createString(): Line {
     const material = new LineBasicMaterial({ color: '#f8fafc' });
     const line = new Line(undefined, material);
@@ -392,8 +439,8 @@ export class ArcheryScene {
 
   private createTargetTexture(): CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
+    canvas.width = 2048;
+    canvas.height = 2048;
     const context = canvas.getContext('2d');
 
     if (!context) {
@@ -408,27 +455,25 @@ export class ArcheryScene {
       const colorIndex = Math.floor((10 - ring) / 2);
       context.beginPath();
       context.fillStyle = colors[colorIndex];
-      context.arc(512, 512, (ring / 10) * 480, 0, Math.PI * 2);
+      context.arc(1024, 1024, (ring / 10) * 960, 0, Math.PI * 2);
       context.fill();
     }
 
     context.strokeStyle = '#f8fafc';
-    context.lineWidth = 3;
+    context.lineWidth = 6;
     for (let ring = 1; ring <= 10; ring += 1) {
       context.beginPath();
-      context.arc(512, 512, (ring / 10) * 480, 0, Math.PI * 2);
+      context.arc(1024, 1024, (ring / 10) * 960, 0, Math.PI * 2);
       context.stroke();
     }
 
-    const texture = new CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
+    return this.enhanceTexture(new CanvasTexture(canvas));
   }
 
   private createBannerTexture(label: string, accent: string): CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 256;
+    canvas.width = 2048;
+    canvas.height = 512;
     const context = canvas.getContext('2d');
 
     if (!context) {
@@ -439,19 +484,23 @@ export class ArcheryScene {
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     context.fillStyle = accent;
-    context.fillRect(0, 0, canvas.width, 34);
-    context.fillRect(0, canvas.height - 34, canvas.width, 34);
+    context.fillRect(0, 0, canvas.width, 54);
+    context.fillRect(0, canvas.height - 54, canvas.width, 54);
 
     context.fillStyle = 'rgba(22, 36, 63, 0.08)';
-    context.fillRect(38, 44, canvas.width - 76, canvas.height - 88);
+    context.fillRect(74, 84, canvas.width - 148, canvas.height - 168);
 
     context.fillStyle = '#16243f';
-    context.font = '700 86px "Trebuchet MS", sans-serif';
+    context.font = '700 164px "Trebuchet MS", sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(label, canvas.width / 2, canvas.height / 2);
 
-    const texture = new CanvasTexture(canvas);
+    return this.enhanceTexture(new CanvasTexture(canvas));
+  }
+
+  private enhanceTexture(texture: CanvasTexture): CanvasTexture {
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
     texture.needsUpdate = true;
     return texture;
   }

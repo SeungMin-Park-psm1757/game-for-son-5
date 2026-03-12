@@ -27,7 +27,7 @@ export class TouchAimInput implements AimInputAdapter {
     this.dragOriginY = event.clientY;
     this.dragBaseYaw = this.raw.yaw;
     this.dragBasePitch = this.raw.pitch;
-    this.surface.setPointerCapture?.(event.pointerId);
+    safeSetPointerCapture(this.surface, event.pointerId);
   };
 
   private readonly onPointerMove = (event: PointerEvent) => {
@@ -44,7 +44,9 @@ export class TouchAimInput implements AimInputAdapter {
     }
 
     this.updateFromDrag(event);
-    this.surface?.releasePointerCapture?.(event.pointerId);
+    if (this.surface) {
+      safeReleasePointerCapture(this.surface, event.pointerId);
+    }
     this.activePointerId = null;
     this.dragBaseYaw = this.raw.yaw;
     this.dragBasePitch = this.raw.pitch;
@@ -135,4 +137,22 @@ export class TouchAimInput implements AimInputAdapter {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function safeSetPointerCapture(node: HTMLElement, pointerId: number): void {
+  try {
+    node.setPointerCapture?.(pointerId);
+  } catch {
+    // Ignore capture failures on browsers that reject synthetic or delayed pointers.
+  }
+}
+
+function safeReleasePointerCapture(node: HTMLElement, pointerId: number): void {
+  try {
+    if (!node.hasPointerCapture || node.hasPointerCapture(pointerId)) {
+      node.releasePointerCapture?.(pointerId);
+    }
+  } catch {
+    // A missing capture should not break touch aiming.
+  }
 }

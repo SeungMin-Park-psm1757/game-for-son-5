@@ -3,35 +3,80 @@ import type { ModeConfig, ModeId, ResultBand } from '../types';
 export const MODES: Record<ModeId, ModeConfig> = {
   practice6: {
     id: 'practice6',
+    chapterId: 'practice',
     title: '연습장 6발',
-    subtitle: '입력감 확인',
+    shortTitle: '연습장',
+    subtitle: '감각을 익히는 워밍업',
     arrowCount: 6,
     ends: 2,
-    description: '짧게 한 판 즐기며 터치 조준과 릴리스 타이밍을 익히는 가벼운 모드입니다.',
+    description: '바람이 거의 없는 연습장입니다. 확대 조준과 릴리스 타이밍을 먼저 익혀보세요.',
     isChallenge: false,
+    locationLabel: '연습장',
+    badgeEmoji: '🎯',
+    windDrift: 0.08,
+    windClamp: 0.22,
+    windInfluence: 0.7,
+    tremorMultiplier: 0.9,
   },
-  trial12: {
-    id: 'trial12',
-    title: '대표 선발전 12발',
-    subtitle: '반복 플레이용 메인 모드',
-    arrowCount: 12,
-    ends: 4,
-    description: '명예의 전당 기록 경쟁에 가장 잘 맞는 짧고 밀도 높은 챌린지 모드입니다.',
+  chapterKorea9: {
+    id: 'chapterKorea9',
+    chapterId: 'korea',
+    title: '한국 경기 9발',
+    shortTitle: '한국 경기',
+    subtitle: '첫 국가대표 선발 무대',
+    arrowCount: 9,
+    ends: 3,
+    description: '서울 경기장은 가장 차분한 바람으로 시작합니다. 다음 챕터를 열려면 66점 이상이 필요합니다.',
     isChallenge: true,
-    unlockScore: 100,
+    locationLabel: '한국',
+    badgeEmoji: '🇰🇷',
+    unlockScore: 66,
+    nextMode: 'chapterJapan9',
+    windDrift: 0.12,
+    windClamp: 0.35,
+    windInfluence: 0.95,
+    tremorMultiplier: 1,
   },
-  ranking72: {
-    id: 'ranking72',
-    title: '랭킹 라운드 72발',
-    subtitle: '추후 확장',
-    arrowCount: 72,
-    ends: 12,
-    description: '기록 구조는 이미 준비되어 있고, 향후 정식 랭킹 모드로 확장할 예정입니다.',
+  chapterJapan9: {
+    id: 'chapterJapan9',
+    chapterId: 'japan',
+    title: '일본 경기 9발',
+    shortTitle: '일본 경기',
+    subtitle: '횡풍이 늘어나는 두 번째 챕터',
+    arrowCount: 9,
+    ends: 3,
+    description: '도쿄 경기장은 좌우 바람이 더 자주 변합니다. 다음 챕터를 열려면 72점 이상이 필요합니다.',
     isChallenge: true,
+    locationLabel: '일본',
+    badgeEmoji: '🇯🇵',
+    unlockScore: 72,
+    nextMode: 'chapterUsa9',
+    windDrift: 0.18,
+    windClamp: 0.5,
+    windInfluence: 1.15,
+    tremorMultiplier: 1.08,
+  },
+  chapterUsa9: {
+    id: 'chapterUsa9',
+    chapterId: 'usa',
+    title: '미국 경기 9발',
+    shortTitle: '미국 경기',
+    subtitle: '가장 까다로운 결승 챕터',
+    arrowCount: 9,
+    ends: 3,
+    description: '미국 챕터는 강한 바람과 긴장도가 함께 올라갑니다. 최종 기록을 명예의 전당에 남겨보세요.',
+    isChallenge: true,
+    locationLabel: '미국',
+    badgeEmoji: '🇺🇸',
+    windDrift: 0.24,
+    windClamp: 0.68,
+    windInfluence: 1.3,
+    tremorMultiplier: 1.16,
   },
 };
 
-export const DEFAULT_UNLOCKED_MODES: ModeId[] = ['practice6', 'trial12'];
+export const DEFAULT_UNLOCKED_MODES: ModeId[] = ['practice6', 'chapterKorea9'];
+export const CHAPTER_MODE_IDS: ModeId[] = ['chapterKorea9', 'chapterJapan9', 'chapterUsa9'];
 
 export function getModeConfig(modeId: ModeId): ModeConfig {
   return MODES[modeId];
@@ -52,6 +97,11 @@ export function getResultBand(modeId: ModeId, totalScore: number): ResultBand {
   return 'encourage';
 }
 
-export function shouldUnlockRanking72(modeId: ModeId, totalScore: number): boolean {
-  return modeId === 'trial12' && totalScore >= (MODES.trial12.unlockScore ?? Number.MAX_SAFE_INTEGER);
+export function getUnlockedNextMode(modeId: ModeId, totalScore: number): ModeId | null {
+  const mode = MODES[modeId];
+  if (!mode.nextMode || !mode.unlockScore) {
+    return null;
+  }
+
+  return totalScore >= mode.unlockScore ? mode.nextMode : null;
 }

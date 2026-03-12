@@ -11,11 +11,7 @@ export function createSettingsScreen(options: SettingsScreenOptions): ScreenCont
   const screen = element('section', 'screen settings-screen');
   const card = element('div', 'panel settings-panel');
   const title = element('h2', 'section-title', '설정');
-  const intro = element(
-    'p',
-    'muted-text',
-    '모바일은 기본적으로 터치 조준을 사용하고, 데스크톱에서는 마우스 조준으로 자동 전환됩니다.',
-  );
+  const intro = element('p', 'muted-text', '사운드, 진동, 입력 방식처럼 지금 바로 체감되는 옵션만 남겨두었습니다.');
   const form = element('div', 'settings-grid');
 
   const profileInput = createTextControl('프로필 이름', options.settings.profileName);
@@ -24,9 +20,9 @@ export function createSettingsScreen(options: SettingsScreenOptions): ScreenCont
     ['touch', '터치'],
     ['desktop', '데스크톱'],
   ]);
-  const reduceMotion = createCheckboxControl('카메라 흔들림 줄이기', options.settings.reduceMotion);
+  const reduceMotion = createCheckboxControl('모션 줄이기', options.settings.reduceMotion);
   const audioEnabled = createCheckboxControl('사운드 켜기', options.settings.audioEnabled);
-  const hapticsEnabled = createCheckboxControl('진동/햅틱 켜기', options.settings.hapticsEnabled);
+  const hapticsEnabled = createCheckboxControl('진동 및 햅틱 켜기', options.settings.hapticsEnabled);
   const debugOverlay = createCheckboxControl('디버그 오버레이', options.settings.debugOverlay);
 
   form.append(
@@ -39,7 +35,7 @@ export function createSettingsScreen(options: SettingsScreenOptions): ScreenCont
   );
 
   const actions = element('div', 'action-row');
-  const back = element('button', 'secondary-button', '홈으로');
+  const back = element('button', 'secondary-button', '뒤로');
   const save = element('button', 'primary-button', '저장');
   actions.append(back, save);
   card.append(title, intro, form, actions);

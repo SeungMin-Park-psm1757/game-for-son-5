@@ -11,12 +11,12 @@ export function showResetConfirmModal(
   const description = element(
     'p',
     'muted-text',
-    '기록만 지우거나, 조준 관련 저장값만 비우거나, 전체 데이터를 안전하게 초기화할 수 있습니다.',
+    '기록만 지우거나, 입력 관련 값만 비우거나, 전체 데이터를 완전히 초기화할 수 있습니다.',
   );
   const actions = element('div', 'modal-action-list');
   const cancel = element('button', 'secondary-button', '취소');
   const recordsOnly = element('button', 'secondary-button', '기록만 초기화');
-  const calibrationOnly = element('button', 'secondary-button', '조준 저장값 초기화');
+  const calibrationOnly = element('button', 'secondary-button', '조준 관련 값 초기화');
   const fullReset = element('button', 'danger-button', '전체 초기화');
 
   actions.append(recordsOnly, calibrationOnly, fullReset);

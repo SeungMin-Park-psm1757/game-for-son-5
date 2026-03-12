@@ -1,4 +1,5 @@
-export type ModeId = 'practice6' | 'trial12' | 'ranking72';
+export type ModeId = 'practice6' | 'chapterKorea9' | 'chapterJapan9' | 'chapterUsa9';
+export type ChapterId = 'practice' | 'korea' | 'japan' | 'usa';
 export type InputMode = 'sensor' | 'touch' | 'desktop';
 export type DominantHand = 'left' | 'right';
 export type ResultBand = 'encourage' | 'bronze' | 'silver' | 'gold';
@@ -6,13 +7,22 @@ export type ResetScope = 'records' | 'calibration' | 'all';
 
 export interface ModeConfig {
   id: ModeId;
+  chapterId: ChapterId;
   title: string;
+  shortTitle: string;
   subtitle: string;
   arrowCount: number;
   ends: number;
   description: string;
   isChallenge: boolean;
+  locationLabel: string;
+  badgeEmoji: string;
   unlockScore?: number;
+  nextMode?: ModeId;
+  windDrift: number;
+  windClamp: number;
+  windInfluence: number;
+  tremorMultiplier: number;
 }
 
 export interface CalibrationProfile {

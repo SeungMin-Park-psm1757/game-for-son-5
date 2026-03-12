@@ -72,10 +72,9 @@ export class App {
         createHomeHallOfFame({
           records: this.snapshot.records,
           settings: this.snapshot.settings,
+          unlockedModes: this.snapshot.unlockedModes,
           homeComment: new StoryEngine(this.snapshot.storyFlags).getRandomHomeComment().lines[0],
-          ranking72Unlocked: this.snapshot.unlockedModes.includes('ranking72'),
-          onPractice: () => void this.beginMode('practice6'),
-          onChallenge: () => void this.beginMode('trial12'),
+          onStartMode: (mode) => void this.beginMode(mode),
           onSettings: () => this.navigate(buildRoute('settings')),
           onResetHoldComplete: () =>
             showResetConfirmModal(this.overlayHost, (scope) => {
@@ -140,7 +139,7 @@ export class App {
         createResultScreen({
           summary: this.lastResult,
           onHome: () => this.navigate(buildRoute('home')),
-          onRematch: () => void this.beginMode(this.lastResult?.record.mode ?? 'trial12'),
+          onRematch: () => void this.beginMode(this.lastResult?.record.mode ?? 'practice6'),
         }),
       );
 

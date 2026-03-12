@@ -29,7 +29,7 @@ export function buildRoute(name: RouteName, params?: Record<string, string>): st
 }
 
 export function parseModeId(value: string | null): ModeId {
-  if (value === 'practice6' || value === 'trial12' || value === 'ranking72') {
+  if (value === 'practice6' || value === 'chapterKorea9' || value === 'chapterJapan9' || value === 'chapterUsa9') {
     return value;
   }
   return 'practice6';

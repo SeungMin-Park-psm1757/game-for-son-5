@@ -4,7 +4,7 @@ import type { MatchRecord } from '../types';
 
 const baseRecord = (overrides: Partial<MatchRecord>): MatchRecord => ({
   id: crypto.randomUUID(),
-  mode: 'trial12',
+  mode: 'chapterKorea9',
   totalScore: 90,
   arrowScores: [8, 8, 8],
   xCount: 1,
