@@ -41,6 +41,15 @@ interface ActiveShot {
   resolve: () => void;
 }
 
+interface FamilyStandee {
+  root: Group;
+  photoPanel: Mesh;
+  cheerBanner: Mesh;
+  baseY: number;
+  baseRotationY: number;
+  phase: number;
+}
+
 export class ArcheryScene {
   private readonly scene = new Scene();
   private readonly camera = new PerspectiveCamera(64, 1, 0.1, 200);
@@ -58,6 +67,7 @@ export class ArcheryScene {
   );
   private readonly impactGroup = new Group();
   private readonly stuckArrows: Group[] = [];
+  private readonly familyStandees: FamilyStandee[] = [];
   private activeShot: ActiveShot | null = null;
   private currentFov = 64;
 
@@ -77,6 +87,7 @@ export class ArcheryScene {
     this.updateCamera(snapshot, scopeRatio);
     this.updateBow(drawRatio);
     this.updateShot();
+    this.updateAmbientMotion();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -276,14 +287,17 @@ export class ArcheryScene {
 
     keys.forEach((key, index) => {
       const anchor = anchors[index];
-      const stand = this.createFamilyCheerStand(key);
-      stand.position.set(anchor.x, 0, anchor.z);
-      stand.rotation.y = anchor.rotation;
-      this.scene.add(stand);
+      const standee = this.createFamilyCheerStand(key);
+      standee.root.position.set(anchor.x, 0, anchor.z);
+      standee.root.rotation.y = anchor.rotation;
+      standee.baseRotationY = anchor.rotation;
+      standee.phase = index * 0.85;
+      this.familyStandees.push(standee);
+      this.scene.add(standee.root);
     });
   }
 
-  private createFamilyCheerStand(key: keyof typeof PORTRAITS): Group {
+  private createFamilyCheerStand(key: keyof typeof PORTRAITS): FamilyStandee {
     const info = PORTRAITS[key];
     const stand = new Group();
 
@@ -305,7 +319,7 @@ export class ArcheryScene {
     );
     frame.position.set(0, 1.34, -0.02);
 
-    const photo = new Mesh(
+    const photoPanel = new Mesh(
       new PlaneGeometry(0.86, 1.32),
       new MeshStandardMaterial({
         map: this.loadPortraitTexture(key),
@@ -314,7 +328,7 @@ export class ArcheryScene {
         side: DoubleSide,
       }),
     );
-    photo.position.set(0, 1.34, 0.05);
+    photoPanel.position.set(0, 1.34, 0.05);
 
     const topAccent = new Mesh(
       new BoxGeometry(1.04, 0.12, 0.08),
@@ -341,8 +355,31 @@ export class ArcheryScene {
     backBrace.position.set(0, 1.12, -0.38);
     backBrace.rotation.x = -0.24;
 
-    stand.add(platform, riser, frame, photo, topAccent, namePlate, nameBand, backBrace);
-    return stand;
+    const pole = new Mesh(
+      new BoxGeometry(0.05, 0.86, 0.05),
+      new MeshStandardMaterial({ color: '#7f6958', roughness: 0.76 }),
+    );
+    pole.position.set(0.56, 1.26, -0.18);
+
+    const cheerBanner = new Mesh(
+      new PlaneGeometry(0.48, 0.28),
+      new MeshStandardMaterial({
+        map: this.createCheerTexture(`${info.label} 응원`, info.accent),
+        side: DoubleSide,
+      }),
+    );
+    cheerBanner.position.set(0.81, 1.56, -0.08);
+    cheerBanner.rotation.y = -0.1;
+
+    stand.add(platform, riser, frame, photoPanel, topAccent, namePlate, nameBand, backBrace, pole, cheerBanner);
+    return {
+      root: stand,
+      photoPanel,
+      cheerBanner,
+      baseY: 0,
+      baseRotationY: 0,
+      phase: 0,
+    };
   }
 
   private updateCamera(snapshot: AimSnapshot, scopeRatio: number): void {
@@ -393,6 +430,28 @@ export class ArcheryScene {
       this.activeShot = null;
       finished.resolve();
     }
+  }
+
+  private updateAmbientMotion(): void {
+    if (this.familyStandees.length === 0) {
+      return;
+    }
+
+    const time = performance.now() * 0.001;
+    const motionScale = this.reduceMotion ? 0.38 : 1;
+
+    this.familyStandees.forEach((standee) => {
+      const bob = Math.max(0, Math.sin(time * 1.9 + standee.phase)) * 0.045 * motionScale;
+      const sway = Math.sin(time * 2.4 + standee.phase) * 0.065 * motionScale;
+      const flutter = Math.sin(time * 4.2 + standee.phase) * 0.18 * motionScale;
+
+      standee.root.position.y = standee.baseY + bob;
+      standee.root.rotation.y = standee.baseRotationY + sway * 0.3;
+      standee.photoPanel.rotation.y = sway;
+      standee.photoPanel.rotation.z = Math.sin(time * 1.35 + standee.phase) * 0.028 * motionScale;
+      standee.cheerBanner.rotation.z = 0.08 + flutter;
+      standee.cheerBanner.rotation.x = 0.03 + sway * 0.25;
+    });
   }
 
   private pinArrow(arrow: Group, hitX: number, hitY: number, direction: Vector3): void {
@@ -578,6 +637,35 @@ export class ArcheryScene {
 
     context.fillStyle = '#16243f';
     context.font = '700 164px "Trebuchet MS", sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(label, canvas.width / 2, canvas.height / 2);
+
+    return this.enhanceTexture(new CanvasTexture(canvas));
+  }
+
+  private createCheerTexture(label: string, accent: string): CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      return new CanvasTexture(canvas);
+    }
+
+    context.fillStyle = '#fff7eb';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = accent;
+    context.fillRect(0, 0, canvas.width, 54);
+    context.fillRect(0, canvas.height - 54, canvas.width, 54);
+
+    context.fillStyle = 'rgba(22, 36, 63, 0.1)';
+    context.fillRect(48, 84, canvas.width - 96, canvas.height - 168);
+
+    context.fillStyle = '#16243f';
+    context.font = '700 88px "Trebuchet MS", sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(label, canvas.width / 2, canvas.height / 2);

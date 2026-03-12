@@ -61,6 +61,18 @@ export class StoryOverlay {
   private async showScene(event: StoryEvent): Promise<void> {
     const scrim = element('div', 'story-scene');
     const card = element('div', 'story-scene-card');
+    const illustration = element('div', 'story-scene-illustration');
+    illustration.innerHTML = `
+      <div class="story-scene-sun"></div>
+      <div class="story-scene-mountain story-scene-mountain-back"></div>
+      <div class="story-scene-mountain story-scene-mountain-front"></div>
+      <div class="story-scene-field"></div>
+      <div class="story-scene-target"></div>
+      <div class="story-scene-pavilion"></div>
+      <div class="story-scene-brush story-scene-brush-left"></div>
+      <div class="story-scene-brush story-scene-brush-right"></div>
+    `;
+    const content = element('div', 'story-scene-content');
     const portraitSlot = element('div', 'story-scene-portrait');
     const speaker = element('div', 'story-speaker');
     const text = element('div', 'story-scene-text');
@@ -68,13 +80,17 @@ export class StoryOverlay {
     const next = element('button', 'primary-button', '다음');
     const skip = element('button', 'secondary-button', '건너뛰기');
     footer.append(skip, next);
-    card.append(portraitSlot, speaker, text, footer);
+    content.append(portraitSlot, speaker, text, footer);
+    card.append(illustration, content);
     scrim.append(card);
     this.host.append(scrim);
 
     let index = 0;
     const renderLine = () => {
       const current = event.lines[index];
+      const info = PORTRAITS[current.portraitKey];
+      card.style.setProperty('--story-accent', info.accent);
+      card.style.setProperty('--story-soft', info.accentSoft);
       portraitSlot.replaceChildren(this.createPortrait(current.portraitKey));
       speaker.textContent = current.speaker;
       text.textContent = current.text;
