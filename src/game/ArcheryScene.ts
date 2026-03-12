@@ -141,7 +141,12 @@ export class ArcheryScene {
   private activeShot: ActiveShot | null = null;
   private currentFov = 64;
 
-  constructor(private readonly host: HTMLElement, private readonly reduceMotion: boolean, chapterId: ChapterId, arrowTheme?: ArrowTheme) {
+  constructor(
+    private readonly host: HTMLElement,
+    private readonly reduceMotion: boolean,
+    private readonly chapterId: ChapterId,
+    arrowTheme?: ArrowTheme,
+  ) {
     this.theme = CHAPTER_THEMES[chapterId];
     if (arrowTheme) {
       this.currentArrowTheme = arrowTheme;
@@ -270,12 +275,6 @@ export class ArcheryScene {
     backdrop.position.set(0, 6.7, -38.4);
     this.scene.add(backdrop);
 
-    const eventBanner = new Mesh(
-      new PlaneGeometry(6.8, 1.45),
-      new MeshStandardMaterial({ map: this.createBannerTexture(this.theme.banner, this.theme.accent), side: DoubleSide }),
-    );
-    eventBanner.position.set(0, 6.08, -24.1);
-    this.scene.add(eventBanner);
     this.addCeremonyGate();
     this.addSkyFestivalRig();
 
@@ -354,14 +353,15 @@ export class ArcheryScene {
     this.scene.add(rail);
 
     const sideBanner = new Mesh(
-      new PlaneGeometry(2.2, 5.8),
+      new PlaneGeometry(1.68, 4.5),
       new MeshStandardMaterial({
-        map: this.createBannerTexture(side > 0 ? 'CHEER ZONE' : this.theme.backdropLabel, side > 0 ? this.theme.accentAlt : this.theme.accent),
+        map: this.createSideMarkerTexture(side),
         side: DoubleSide,
+        transparent: true,
       }),
     );
-    sideBanner.position.set(side * 5.45, 2.7, -20.75);
-    sideBanner.rotation.y = side > 0 ? -0.06 : 0.06;
+    sideBanner.position.set(side * 5.42, 2.58, -20.75);
+    sideBanner.rotation.y = side > 0 ? -0.08 : 0.08;
     this.scene.add(sideBanner);
   }
 
@@ -393,11 +393,8 @@ export class ArcheryScene {
 
   private addSkyFestivalRig(): void {
     const ropeMaterial = new MeshStandardMaterial({ color: '#f7efe0', roughness: 0.62 });
-    const pennantColors = [this.theme.accent, this.theme.accentAlt, '#f7d48f', '#247a6d'];
-    const rows = [
-      { y: 7.15, z: -17.4, width: 12.8, pennants: 15, rotationZ: 0.02 },
-      { y: 8.05, z: -26.8, width: 15.6, pennants: 19, rotationZ: -0.018 },
-    ];
+    const pennantColors = [this.theme.accent, this.theme.accentAlt, '#f7d48f'];
+    const rows = [{ y: 7.45, z: -20.6, width: 11.2, pennants: 11, rotationZ: 0.012 }];
 
     rows.forEach((row, rowIndex) => {
       const rope = new Mesh(new BoxGeometry(row.width, 0.03, 0.03), ropeMaterial);
@@ -780,8 +777,8 @@ export class ArcheryScene {
 
     const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, this.theme.sky);
-    gradient.addColorStop(0.38, '#edf3f4');
-    gradient.addColorStop(0.66, '#efe7d7');
+    gradient.addColorStop(0.46, '#ecf1ee');
+    gradient.addColorStop(0.72, '#efe7d7');
     gradient.addColorStop(1, '#95b86a');
     context.fillStyle = gradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -791,59 +788,28 @@ export class ArcheryScene {
     context.arc(canvas.width * 0.18, canvas.height * 0.18, 196, 0, Math.PI * 2);
     context.fill();
 
-    const paintCloud = (x: number, y: number, width: number, height: number, alpha: number) => {
-      context.save();
-      context.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      context.beginPath();
-      context.ellipse(x, y, width, height, 0, 0, Math.PI * 2);
-      context.fill();
-      context.beginPath();
-      context.ellipse(x - width * 0.34, y + 12, width * 0.58, height * 0.72, 0, 0, Math.PI * 2);
-      context.fill();
-      context.beginPath();
-      context.ellipse(x + width * 0.3, y + 8, width * 0.62, height * 0.78, 0, 0, Math.PI * 2);
-      context.fill();
-      context.restore();
-    };
-
-    paintCloud(canvas.width * 0.24, 184, 162, 44, 0.18);
-    paintCloud(canvas.width * 0.52, 146, 176, 48, 0.12);
-    paintCloud(canvas.width * 0.78, 216, 212, 56, 0.16);
-
     const haze = context.createLinearGradient(0, 260, 0, 720);
     haze.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
     haze.addColorStop(1, 'rgba(255, 255, 255, 0)');
     context.fillStyle = haze;
     context.fillRect(0, 240, canvas.width, 460);
 
-    context.fillStyle = 'rgba(255, 248, 235, 0.14)';
+    context.fillStyle = 'rgba(255, 248, 235, 0.12)';
     context.beginPath();
-    context.moveTo(0, 360);
-    context.lineTo(640, 262);
-    context.lineTo(810, 610);
+    context.moveTo(0, 420);
+    context.lineTo(620, 290);
+    context.lineTo(790, 620);
     context.lineTo(0, 820);
     context.closePath();
     context.fill();
 
     context.beginPath();
-    context.moveTo(canvas.width, 340);
-    context.lineTo(canvas.width - 660, 286);
-    context.lineTo(canvas.width - 814, 624);
-    context.lineTo(canvas.width, 792);
+    context.moveTo(canvas.width, 410);
+    context.lineTo(canvas.width - 620, 300);
+    context.lineTo(canvas.width - 792, 630);
+    context.lineTo(canvas.width, 806);
     context.closePath();
     context.fill();
-
-    context.strokeStyle = 'rgba(255, 250, 238, 0.7)';
-    context.lineWidth = 8;
-    context.beginPath();
-    context.moveTo(280, 248);
-    context.quadraticCurveTo(canvas.width * 0.5, 334, canvas.width - 280, 246);
-    context.stroke();
-
-    context.beginPath();
-    context.moveTo(120, 322);
-    context.quadraticCurveTo(canvas.width * 0.5, 420, canvas.width - 120, 322);
-    context.stroke();
 
     context.fillStyle = 'rgba(83, 111, 134, 0.14)';
     context.beginPath();
@@ -876,115 +842,211 @@ export class ArcheryScene {
     context.closePath();
     context.fill();
 
-    const terraceGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    terraceGradient.addColorStop(0, 'rgba(255, 250, 242, 0.96)');
-    terraceGradient.addColorStop(1, 'rgba(235, 224, 206, 0.92)');
+    context.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    context.fillRect(0, 1106, canvas.width, 18);
 
-    context.fillStyle = terraceGradient;
-    context.fillRect(300, 852, 760, 248);
-    context.fillRect(3036, 852, 760, 248);
+    context.fillStyle = 'rgba(255, 248, 239, 0.96)';
+    context.fillRect(390, 878, 560, 214);
+    context.fillRect(3146, 878, 560, 214);
 
     context.fillStyle = 'rgba(22, 36, 63, 0.08)';
-    for (let row = 0; row < 3; row += 1) {
-      context.fillRect(340, 900 + row * 62, 680, 18);
-      context.fillRect(3076, 900 + row * 62, 680, 18);
-    }
+    context.fillRect(438, 932, 464, 14);
+    context.fillRect(3194, 932, 464, 14);
+    context.fillRect(438, 994, 464, 14);
+    context.fillRect(3194, 994, 464, 14);
 
-    for (let block = 0; block < 26; block += 1) {
+    for (let block = 0; block < 10; block += 1) {
       const color = CROWD_COLORS[block % CROWD_COLORS.length];
+      const leftX = 460 + block * 42;
+      const rightX = 3216 + block * 42;
+      const topY = block % 2 === 0 ? 966 : 1012;
       context.fillStyle = color;
-      const leftX = 356 + (block % 13) * 48;
-      const rightX = 3090 + (block % 13) * 48;
-      const rowY = 924 + Math.floor(block / 13) * 70;
-      context.fillRect(leftX, rowY, 28, 28);
-      context.fillRect(leftX + 8, rowY - 18, 12, 18);
-      context.fillRect(rightX, rowY, 28, 28);
-      context.fillRect(rightX + 8, rowY - 18, 12, 18);
+      context.fillRect(leftX, topY, 24, 24);
+      context.fillRect(leftX + 6, topY - 16, 12, 16);
+      context.fillRect(rightX, topY, 24, 24);
+      context.fillRect(rightX + 6, topY - 16, 12, 16);
     }
 
+    context.fillStyle = 'rgba(255, 251, 244, 0.96)';
+    context.fillRect(1384, 806, 1328, 262);
     context.fillStyle = this.theme.accent;
-    context.fillRect(700, 814, 2696, 22);
-    context.fillRect(700, 1100, 2696, 22);
-
-    context.fillStyle = 'rgba(255, 251, 244, 0.95)';
-    context.fillRect(1120, 786, 1856, 358);
-    context.strokeStyle = 'rgba(22, 36, 63, 0.08)';
-    context.lineWidth = 10;
-    context.strokeRect(1120, 786, 1856, 358);
-
+    context.fillRect(1528, 770, 1040, 24);
     context.fillStyle = this.theme.accentAlt;
-    context.fillRect(1264, 872, 72, 230);
-    context.fillRect(2760, 872, 72, 230);
-    context.fillRect(1324, 840, 1448, 24);
+    context.fillRect(1548, 836, 54, 192);
+    context.fillRect(2494, 836, 54, 192);
+    context.fillRect(1610, 854, 876, 22);
 
-    context.fillStyle = 'rgba(22, 36, 63, 0.09)';
-    context.fillRect(1450, 910, 1170, 132);
+    context.fillStyle = 'rgba(22, 36, 63, 0.08)';
+    context.fillRect(1656, 910, 784, 112);
 
-    context.fillStyle = '#fff6ea';
-    context.fillRect(1600, 876, 876, 88);
-    context.strokeStyle = 'rgba(22, 36, 63, 0.1)';
-    context.lineWidth = 6;
-    context.strokeRect(1600, 876, 876, 88);
-
-    context.fillStyle = this.theme.accent;
-    context.fillRect(1506, 822, 178, 96);
-    context.fillRect(2392, 822, 178, 96);
-
-    context.fillStyle = 'rgba(255, 249, 238, 0.82)';
-    context.fillRect(1408, 1018, 1260, 68);
-
-    context.fillStyle = '#16243f';
-    context.font = '700 146px "Trebuchet MS", sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(this.theme.backdropLabel, canvas.width / 2, 954);
-
-    context.fillStyle = 'rgba(22, 36, 63, 0.72)';
-    context.font = '700 74px "Trebuchet MS", sans-serif';
-    context.fillText(this.theme.banner, canvas.width / 2, 1050);
+    context.fillStyle = '#9a7446';
+    context.fillRect(2028, 900, 12, 180);
+    context.beginPath();
+    context.arc(2034, 888, 64, 0, Math.PI * 2);
+    context.fillStyle = '#f3efe2';
+    context.fill();
+    context.beginPath();
+    context.arc(2034, 888, 52, 0, Math.PI * 2);
+    context.fillStyle = '#202632';
+    context.fill();
+    context.beginPath();
+    context.arc(2034, 888, 38, 0, Math.PI * 2);
+    context.fillStyle = '#2e66cc';
+    context.fill();
+    context.beginPath();
+    context.arc(2034, 888, 24, 0, Math.PI * 2);
+    context.fillStyle = '#ce4937';
+    context.fill();
+    context.beginPath();
+    context.arc(2034, 888, 10, 0, Math.PI * 2);
+    context.fillStyle = '#ffe6a8';
+    context.fill();
 
     context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
     context.lineWidth = 8;
     context.beginPath();
-    context.moveTo(184, 1098);
-    context.lineTo(1208, 1158);
-    context.moveTo(3912, 1098);
-    context.lineTo(2888, 1158);
+    context.moveTo(1244, 1270);
+    context.lineTo(1870, 1074);
+    context.lineTo(2198, 1074);
+    context.lineTo(2824, 1270);
     context.stroke();
-
-    context.fillStyle = 'rgba(255, 255, 255, 0.34)';
-    context.fillRect(0, 1118, canvas.width, 24);
 
     return this.enhanceTexture(new CanvasTexture(canvas));
   }
 
-  private createBannerTexture(label: string, accent: string): CanvasTexture {
+  private createSideMarkerTexture(side: -1 | 1): CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 512;
+    canvas.width = 768;
+    canvas.height = 2048;
     const context = canvas.getContext('2d');
 
     if (!context) {
       return new CanvasTexture(canvas);
     }
 
-    context.fillStyle = '#f7f1e5';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'rgba(255, 250, 241, 0.96)';
+    context.fillRect(94, 60, canvas.width - 188, canvas.height - 120);
 
-    context.fillStyle = accent;
-    context.fillRect(0, 0, canvas.width, 54);
-    context.fillRect(0, canvas.height - 54, canvas.width, 54);
+    context.fillStyle = this.theme.accent;
+    context.fillRect(94, 60, canvas.width - 188, 62);
+    context.fillRect(94, canvas.height - 122, canvas.width - 188, 62);
 
     context.fillStyle = 'rgba(22, 36, 63, 0.08)';
-    context.fillRect(74, 84, canvas.width - 148, canvas.height - 168);
+    context.fillRect(152, 168, canvas.width - 304, canvas.height - 336);
 
-    context.fillStyle = '#16243f';
-    context.font = '700 164px "Trebuchet MS", sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(label, canvas.width / 2, canvas.height / 2);
+    const icon = this.chapterId === 'practice' ? 'kr' : side < 0 ? this.getChapterFlagKey() : 'festival';
+    this.drawMarkerIcon(context, icon, canvas.width * 0.5, canvas.height * 0.5);
 
     return this.enhanceTexture(new CanvasTexture(canvas));
+  }
+
+  private getChapterFlagKey(): 'kr' | 'jp' | 'us' {
+    if (this.chapterId === 'japan') {
+      return 'jp';
+    }
+    if (this.chapterId === 'usa') {
+      return 'us';
+    }
+    return 'kr';
+  }
+
+  private drawMarkerIcon(
+    context: CanvasRenderingContext2D,
+    icon: 'kr' | 'jp' | 'us' | 'festival',
+    centerX: number,
+    centerY: number,
+  ): void {
+    context.save();
+    context.translate(centerX, centerY);
+
+    if (icon === 'jp') {
+      context.fillStyle = '#fffaf1';
+      context.fillRect(-172, -120, 344, 240);
+      context.beginPath();
+      context.arc(0, 0, 74, 0, Math.PI * 2);
+      context.fillStyle = '#d64545';
+      context.fill();
+      context.restore();
+      return;
+    }
+
+    if (icon === 'us') {
+      context.fillStyle = '#fffaf1';
+      context.fillRect(-172, -120, 344, 240);
+      for (let stripe = 0; stripe < 7; stripe += 1) {
+        context.fillStyle = stripe % 2 === 0 ? '#d64545' : '#fffaf1';
+        context.fillRect(-172, -120 + stripe * 34, 344, 18);
+      }
+      context.fillStyle = '#3157a6';
+      context.fillRect(-172, -120, 150, 118);
+      context.fillStyle = '#fffaf1';
+      for (let row = 0; row < 3; row += 1) {
+        for (let column = 0; column < 4; column += 1) {
+          context.beginPath();
+          context.arc(-144 + column * 30, -92 + row * 28, 5, 0, Math.PI * 2);
+          context.fill();
+        }
+      }
+      context.restore();
+      return;
+    }
+
+    if (icon === 'festival') {
+      const colors = ['#2563eb', '#111827', '#ef4444', '#f59e0b', '#16a34a'];
+      const positions = [
+        [-82, 0],
+        [-22, 0],
+        [38, 0],
+        [-52, 54],
+        [8, 54],
+      ];
+      positions.forEach(([x, y], index) => {
+        context.beginPath();
+        context.arc(x, y, 32, 0, Math.PI * 2);
+        context.lineWidth = 10;
+        context.strokeStyle = colors[index];
+        context.stroke();
+      });
+      context.restore();
+      return;
+    }
+
+    context.fillStyle = '#fffaf1';
+    context.fillRect(-172, -120, 344, 240);
+
+    context.beginPath();
+    context.arc(0, 0, 62, Math.PI * 0.5, Math.PI * 1.5);
+    context.fillStyle = '#d64545';
+    context.fill();
+    context.beginPath();
+    context.arc(0, 0, 62, -Math.PI * 0.5, Math.PI * 0.5);
+    context.fillStyle = '#2563eb';
+    context.fill();
+    context.beginPath();
+    context.arc(0, -31, 31, 0, Math.PI * 2);
+    context.fillStyle = '#2563eb';
+    context.fill();
+    context.beginPath();
+    context.arc(0, 31, 31, 0, Math.PI * 2);
+    context.fillStyle = '#d64545';
+    context.fill();
+
+    context.fillStyle = '#111827';
+    context.fillRect(-140, -86, 14, 44);
+    context.fillRect(-140, 44, 14, 44);
+    context.fillRect(-126, -86, 14, 14);
+    context.fillRect(-126, -28, 14, 14);
+    context.fillRect(-126, 44, 14, 14);
+    context.fillRect(-126, 102, 14, 14);
+
+    context.fillRect(112, -86, 14, 44);
+    context.fillRect(112, 44, 14, 44);
+    context.fillRect(126, -102, 14, 14);
+    context.fillRect(126, -44, 14, 14);
+    context.fillRect(126, 28, 14, 14);
+    context.fillRect(126, 86, 14, 14);
+    context.restore();
   }
 
   private createCheerTexture(label: string, accent: string): CanvasTexture {
