@@ -17,13 +17,13 @@ export interface BallisticResult {
 
 const TARGET_DISTANCE = 30;
 const TARGET_CENTER_Y = 1.58;
-const GRAVITY = new Vector3(0, -9.25, 0);
+const GRAVITY = new Vector3(0, -9.2, 0);
 const BASE_LAUNCH_Y = 1.52;
-const BASE_PITCH = 0.058;
+const BASE_PITCH = 0.056;
 
 function computeLaunchSpeed(drawDuration: number): number {
-  const ratio = Math.min(1, Math.max(0.25, drawDuration / 1.25));
-  return 34 + ratio * 12;
+  const ratio = Math.min(1, Math.max(0.28, drawDuration / 1.3));
+  return 35 + ratio * 11;
 }
 
 function jitter(scale: number): number {
@@ -32,12 +32,12 @@ function jitter(scale: number): number {
 
 export function simulateArrowFlight(input: BallisticInput): BallisticResult {
   const speed = computeLaunchSpeed(input.drawDuration);
-  const yawAngle = input.aimYaw * 0.038 + jitter((1 - input.stability) * 0.012) + jitter((1 - input.releaseQuality) * 0.008);
-  const pitchAngle = BASE_PITCH + input.aimPitch * 0.052 + jitter((1 - input.releaseQuality) * 0.01);
-  const direction = new Vector3(Math.sin(yawAngle), Math.sin(pitchAngle), -1).normalize();
+  const yawAngle = input.aimYaw * 0.03 + jitter((1 - input.stability) * 0.008) + jitter((1 - input.releaseQuality) * 0.006);
+  const pitchAngle = BASE_PITCH + input.aimPitch * 0.045 + jitter((1 - input.releaseQuality) * 0.008);
+  const direction = new Vector3(Math.tan(yawAngle), Math.tan(pitchAngle), -1).normalize();
   const velocity = direction.multiplyScalar(speed);
   const position = new Vector3(0, BASE_LAUNCH_Y, 0);
-  const windForce = new Vector3(input.wind * 0.045, 0, 0);
+  const windForce = new Vector3(input.wind * 0.02, 0, 0);
   const path: Vector3[] = [position.clone()];
   let previous = position.clone();
 

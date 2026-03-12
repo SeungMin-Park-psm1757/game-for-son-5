@@ -46,6 +46,7 @@ export class MatchController implements ScreenController {
   private adapter: AimInputAdapter | null = null;
   private frameHandle = 0;
   private drawStartedAt = 0;
+  private activeDrawPointerId: number | null = null;
   private drawing = false;
   private animating = false;
   private paused = false;
@@ -68,8 +69,6 @@ export class MatchController implements ScreenController {
     const root = element('section', 'screen match-screen');
     const surface = element('div', 'match-surface');
     this.hud = new MatchHUD({
-      onDrawStart: () => this.beginDraw(),
-      onDrawRelease: () => void this.releaseDraw(),
       onPauseToggle: () => this.togglePause(),
       onRecenter: () => this.recenter(),
       onQuit: options.onQuit,
@@ -78,7 +77,7 @@ export class MatchController implements ScreenController {
     this.pauseOverlay.innerHTML = `
       <div class="panel pause-card">
         <h2 class="section-title">잠시 숨 고르기</h2>
-        <p class="muted-text">다시 누르면 바로 경기로 돌아갑니다.</p>
+        <p class="muted-text">계속을 누르면 바로 경기로 돌아갑니다.</p>
       </div>
     `;
     this.pauseOverlay.hidden = true;
@@ -87,14 +86,25 @@ export class MatchController implements ScreenController {
     this.element = root;
     this.scene = new ArcheryScene(this.sceneHost, options.settings.reduceMotion);
 
-    void this.initializeAdapter();
+    this.sceneHost.addEventListener('pointerdown', this.onSurfacePointerDown);
+    this.sceneHost.addEventListener('pointerup', this.onSurfacePointerUp);
+    this.sceneHost.addEventListener('pointercancel', this.onSurfacePointerCancel);
+    window.addEventListener('pointerup', this.onWindowPointerUp);
+    window.addEventListener('pointercancel', this.onWindowPointerCancel);
     window.addEventListener('keydown', this.onKeyDown);
+
+    void this.initializeAdapter();
     this.loop();
   }
 
   public destroy(): void {
     window.cancelAnimationFrame(this.frameHandle);
     window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
+    window.removeEventListener('pointercancel', this.onWindowPointerCancel);
+    this.sceneHost.removeEventListener('pointerdown', this.onSurfacePointerDown);
+    this.sceneHost.removeEventListener('pointerup', this.onSurfacePointerUp);
+    this.sceneHost.removeEventListener('pointercancel', this.onSurfacePointerCancel);
     this.adapter?.stop();
     this.scene.destroy();
   }
@@ -110,6 +120,56 @@ export class MatchController implements ScreenController {
     } else if (event.key.toLowerCase() === 'r') {
       this.recenter();
     }
+  };
+
+  private readonly onSurfacePointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 || this.activeDrawPointerId !== null) {
+      return;
+    }
+
+    event.preventDefault();
+    this.activeDrawPointerId = event.pointerId;
+    this.sceneHost.setPointerCapture?.(event.pointerId);
+    this.beginDraw();
+  };
+
+  private readonly onSurfacePointerUp = (event: PointerEvent) => {
+    if (event.pointerId !== this.activeDrawPointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    this.activeDrawPointerId = null;
+    this.sceneHost.releasePointerCapture?.(event.pointerId);
+    void this.releaseDraw();
+  };
+
+  private readonly onSurfacePointerCancel = (event: PointerEvent) => {
+    if (event.pointerId !== this.activeDrawPointerId) {
+      return;
+    }
+
+    this.activeDrawPointerId = null;
+    this.sceneHost.releasePointerCapture?.(event.pointerId);
+    this.cancelDraw();
+  };
+
+  private readonly onWindowPointerUp = (event: PointerEvent) => {
+    if (event.pointerId !== this.activeDrawPointerId) {
+      return;
+    }
+
+    this.activeDrawPointerId = null;
+    void this.releaseDraw();
+  };
+
+  private readonly onWindowPointerCancel = (event: PointerEvent) => {
+    if (event.pointerId !== this.activeDrawPointerId) {
+      return;
+    }
+
+    this.activeDrawPointerId = null;
+    this.cancelDraw();
   };
 
   private async initializeAdapter(): Promise<void> {
@@ -130,8 +190,8 @@ export class MatchController implements ScreenController {
       }
     }
 
-    const drawVisualRatio = Math.min(frame.drawDuration / 0.9, 1);
-    const scopeRatio = this.drawing ? Math.min(frame.drawDuration / 0.35, 1) : 0;
+    const drawVisualRatio = Math.min(frame.drawDuration / 0.92, 1);
+    const scopeRatio = this.drawing ? Math.min(frame.drawDuration / 0.28, 1) : 0;
     if (!this.paused) {
       this.scene.frame(frame.snapshot, drawVisualRatio, scopeRatio);
     }
@@ -154,7 +214,7 @@ export class MatchController implements ScreenController {
   };
 
   private beginDraw(): void {
-    if (this.animating || this.paused || this.arrowIndex >= this.mode.arrowCount) {
+    if (this.drawing || this.animating || this.paused || this.arrowIndex >= this.mode.arrowCount) {
       return;
     }
 
@@ -171,7 +231,7 @@ export class MatchController implements ScreenController {
 
     const frame = this.composeAimFrame(performance.now());
     const stability = average(this.drawStabilityWindow.length > 0 ? this.drawStabilityWindow : [frame.effectiveStability]);
-    const releaseQuality = clamp(frame.releaseTiming * 0.74 + stability * 0.18 + pullBonus(frame.drawDuration) * 0.08, 0.15, 1);
+    const releaseQuality = clamp(frame.releaseTiming * 0.78 + stability * 0.16 + pullBonus(frame.drawDuration) * 0.06, 0.15, 1);
     const shotPath = simulateArrowFlight({
       aimYaw: frame.snapshot.yaw,
       aimPitch: frame.snapshot.pitch,
@@ -223,6 +283,11 @@ export class MatchController implements ScreenController {
     this.animating = false;
   }
 
+  private cancelDraw(): void {
+    this.drawing = false;
+    this.drawStabilityWindow = [];
+  }
+
   private finishMatch(): void {
     const resultBand = getResultBand(this.mode.id, this.totalScore);
     const record: MatchRecord = {
@@ -258,6 +323,9 @@ export class MatchController implements ScreenController {
 
   private togglePause(): void {
     this.paused = !this.paused;
+    if (this.paused) {
+      this.cancelDraw();
+    }
     this.pauseOverlay.hidden = !this.paused;
   }
 
@@ -275,7 +343,7 @@ export class MatchController implements ScreenController {
     const base = this.adapter?.getSnapshot() ?? fallback;
     const drawDuration = this.drawing ? (now - this.drawStartedAt) / 1000 : 0;
     const tremor = this.computeTremor(now, drawDuration, base.stability);
-    const effectiveStability = clamp(base.stability * 0.7 + tremor.releaseTiming * 0.3 - tremor.tension * 0.035, 0, 1);
+    const effectiveStability = clamp(base.stability * 0.72 + tremor.releaseTiming * 0.28 - tremor.tension * 0.03, 0, 1);
 
     return {
       snapshot: {
@@ -299,15 +367,15 @@ export class MatchController implements ScreenController {
     }
 
     const time = now / 1000;
-    const tension = clamp(drawDuration / 1.28, 0, 1.08);
-    const amplitude = (0.005 + tension * 0.03) * (1.02 - baseStability * 0.18);
+    const tension = clamp(drawDuration / 1.38, 0, 1.08);
+    const amplitude = (0.004 + tension * 0.025) * (1.02 - baseStability * 0.18);
     const offsetYaw =
-      Math.sin(time * 8.7 + this.arrowPatternSeed) * amplitude +
-      Math.sin(time * 13.3 + this.arrowPatternSeed * 0.5) * amplitude * 0.42;
+      Math.sin(time * 8.4 + this.arrowPatternSeed) * amplitude +
+      Math.sin(time * 12.6 + this.arrowPatternSeed * 0.5) * amplitude * 0.38;
     const offsetPitch =
-      Math.cos(time * 7.9 + this.arrowPatternSeed * 1.7) * amplitude * 0.84 +
-      Math.cos(time * 12.2 + this.arrowPatternSeed * 0.8) * amplitude * 0.34;
-    const timingRadius = Math.max(amplitude * 1.8, 0.0001);
+      Math.cos(time * 7.7 + this.arrowPatternSeed * 1.7) * amplitude * 0.8 +
+      Math.cos(time * 11.4 + this.arrowPatternSeed * 0.8) * amplitude * 0.3;
+    const timingRadius = Math.max(amplitude * 1.9, 0.0001);
     const releaseTiming = clamp(1 - Math.hypot(offsetYaw, offsetPitch) / timingRadius, 0, 1);
 
     return { offsetYaw, offsetPitch, tension, releaseTiming };
@@ -333,7 +401,7 @@ function supportsFinePointer(): boolean {
 }
 
 function pullBonus(drawDuration: number): number {
-  return clamp(drawDuration / 0.72, 0, 1);
+  return clamp(drawDuration / 0.74, 0, 1);
 }
 
 function clamp(value: number, min: number, max: number): number {
