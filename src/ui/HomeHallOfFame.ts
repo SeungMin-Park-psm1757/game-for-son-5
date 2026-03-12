@@ -53,8 +53,6 @@ function createStage(options: HomeOptions): {
   const atmosphere = element('div', 'home-stage-atmosphere');
   atmosphere.innerHTML = `
     <div class="home-stage-sun"></div>
-    <div class="home-stage-cloud home-stage-cloud-left"></div>
-    <div class="home-stage-cloud home-stage-cloud-right"></div>
     <div class="home-stage-mountain home-stage-mountain-back"></div>
     <div class="home-stage-mountain home-stage-mountain-front"></div>
     <div class="home-stage-pavilion home-stage-pavilion-left"></div>

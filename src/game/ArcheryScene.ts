@@ -1,7 +1,9 @@
 import {
   AmbientLight,
   BoxGeometry,
+  CapsuleGeometry,
   CanvasTexture,
+  CatmullRomCurve3,
   CircleGeometry,
   Color,
   ConeGeometry,
@@ -17,8 +19,11 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  SphereGeometry,
   Texture,
   TextureLoader,
+  TorusGeometry,
+  TubeGeometry,
   Vector3,
   WebGLRenderer,
 } from 'three';
@@ -29,7 +34,7 @@ import type { AimSnapshot } from '../input/types';
 import type { ChapterId } from '../types';
 
 const ARROW_SHAFT_LENGTH = 1.04;
-const ARROW_HEAD_LENGTH = 0.15;
+const ARROW_HEAD_LENGTH = 0.2;
 const ARROW_TIP_OFFSET = ARROW_SHAFT_LENGTH * 0.5 + ARROW_HEAD_LENGTH;
 const CROWD_COLORS = ['#d9685c', '#f0c05f', '#5ea3d8', '#7e87bf', '#6cb08b', '#d77f91'];
 const DEFAULT_ARROW_THEME: ArrowTheme = {
@@ -128,6 +133,7 @@ export class ArcheryScene {
   private readonly bowGroup = new Group();
   private readonly bowHand = this.createBowHand();
   private readonly drawHand = this.createDrawHand();
+  private readonly archerSilhouette = this.createArcherSilhouette();
   private currentArrowTheme: ArrowTheme = DEFAULT_ARROW_THEME;
   private readonly previewArrow = this.createArrow(false);
   private readonly stringLine = this.createString();
@@ -288,20 +294,80 @@ export class ArcheryScene {
     this.camera.add(this.bowGroup);
     this.scene.add(this.camera);
 
-    const bowLeft = new Mesh(
-      new CylinderGeometry(0.018, 0.02, 0.9, 8),
-      new MeshStandardMaterial({ color: '#7c4c2e' }),
+    const bowAssembly = this.createBowAssembly();
+
+    this.previewArrow.position.set(0.03, 0.01, -0.93);
+    this.bowGroup.position.set(0.44, -0.18, -0.08);
+    this.bowGroup.add(
+      this.archerSilhouette,
+      bowAssembly,
+      this.stringLine,
+      this.previewArrow,
+      this.bowHand,
+      this.drawHand,
     );
-    bowLeft.rotation.z = 0.22;
-    bowLeft.position.set(0.13, 0.08, -0.92);
+  }
 
-    const bowRight = bowLeft.clone();
-    bowRight.rotation.z = -0.22;
-    bowRight.position.y = -0.08;
+  private createBowAssembly(): Group {
+    const bow = new Group();
+    const wood = new MeshStandardMaterial({ color: '#73462b', roughness: 0.42 });
+    const woodDark = new MeshStandardMaterial({ color: '#5a341f', roughness: 0.48 });
+    const metal = new MeshStandardMaterial({ color: '#d5dce6', roughness: 0.24, metalness: 0.4 });
+    const gripWrap = new MeshStandardMaterial({ color: '#233041', roughness: 0.74 });
 
-    this.previewArrow.position.set(0.03, 0, -0.98);
-    this.bowGroup.position.set(0.42, -0.2, -0.12);
-    this.bowGroup.add(bowLeft, bowRight, this.stringLine, this.previewArrow, this.bowHand, this.drawHand);
+    const upperLimb = new Mesh(
+      new TubeGeometry(
+        new CatmullRomCurve3([
+          new Vector3(0.15, 0.58, -1.08),
+          new Vector3(0.1, 0.34, -1.01),
+          new Vector3(0.05, 0.16, -0.95),
+          new Vector3(0.02, 0.08, -0.91),
+        ]),
+        28,
+        0.018,
+        12,
+        false,
+      ),
+      wood,
+    );
+    const lowerLimb = new Mesh(
+      new TubeGeometry(
+        new CatmullRomCurve3([
+          new Vector3(0.15, -0.58, -1.08),
+          new Vector3(0.1, -0.34, -1.01),
+          new Vector3(0.05, -0.16, -0.95),
+          new Vector3(0.02, -0.08, -0.91),
+        ]),
+        28,
+        0.018,
+        12,
+        false,
+      ),
+      wood,
+    );
+
+    const riser = new Mesh(new CapsuleGeometry(0.045, 0.56, 6, 16), woodDark);
+    riser.position.set(0.02, 0, -0.91);
+    riser.rotation.z = 0.05;
+
+    const grip = new Mesh(new CapsuleGeometry(0.05, 0.16, 6, 14), gripWrap);
+    grip.position.set(0.01, -0.02, -0.88);
+    grip.rotation.z = 0.11;
+
+    const sightBar = new Mesh(new CylinderGeometry(0.008, 0.008, 0.26, 10), metal);
+    sightBar.position.set(0.12, 0.1, -0.91);
+    sightBar.rotation.z = Math.PI / 2;
+
+    const sightRing = new Mesh(new TorusGeometry(0.038, 0.006, 8, 22), metal);
+    sightRing.position.set(0.23, 0.1, -0.91);
+    sightRing.rotation.y = Math.PI / 2;
+
+    const arrowRest = new Mesh(new CylinderGeometry(0.006, 0.006, 0.16, 8), metal);
+    arrowRest.position.set(0.08, 0.02, -0.91);
+    arrowRest.rotation.z = Math.PI / 2;
+
+    bow.add(upperLimb, lowerLimb, riser, grip, sightBar, sightRing, arrowRest);
+    return bow;
   }
 
   private addGrandstand(side: -1 | 1): void {
@@ -543,18 +609,19 @@ export class ArcheryScene {
 
   private updateBow(drawRatio: number): void {
     const clamped = Math.max(0, Math.min(drawRatio, 1));
-    this.previewArrow.position.z = -0.98 + clamped * 0.24;
-    this.previewArrow.position.x = 0.03 - clamped * 0.03;
+    this.previewArrow.position.z = -0.93 + clamped * 0.24;
+    this.previewArrow.position.x = 0.03 - clamped * 0.034;
+    this.previewArrow.position.y = 0.01 + clamped * 0.004;
     const points = [
-      new Vector3(-0.05, 0.36, -0.92),
-      new Vector3(-0.02 - clamped * 0.13, 0, -0.89 + clamped * 0.035),
-      new Vector3(-0.05, -0.36, -0.92),
+      new Vector3(0.16, 0.58, -1.08),
+      new Vector3(-0.02 - clamped * 0.13, 0.01, -0.9 + clamped * 0.04),
+      new Vector3(0.16, -0.58, -1.08),
     ];
     this.stringLine.geometry.setFromPoints(points);
     this.previewArrow.visible = !this.activeShot;
-    this.drawHand.position.set(-0.02 - clamped * 0.13, -0.01, -0.89 + clamped * 0.035);
-    this.drawHand.rotation.y = -0.25 - clamped * 0.22;
-    this.drawHand.rotation.z = -0.08 + clamped * 0.04;
+    this.drawHand.position.set(-0.03 - clamped * 0.14, -0.01, -0.9 + clamped * 0.04);
+    this.drawHand.rotation.y = -0.32 - clamped * 0.26;
+    this.drawHand.rotation.z = -0.05 + clamped * 0.06;
   }
 
   private updateShot(): void {
@@ -628,52 +695,59 @@ export class ArcheryScene {
     const group = new Group();
 
     const shaft = new Mesh(
-      new CylinderGeometry(0.012, 0.012, ARROW_SHAFT_LENGTH, 10),
-      new MeshStandardMaterial({ color: '#d4b281' }),
+      new CylinderGeometry(0.009, 0.011, ARROW_SHAFT_LENGTH, 14),
+      new MeshStandardMaterial({ color: '#c59a62', roughness: 0.5 }),
     );
     shaft.name = 'shaft';
     shaft.rotation.x = Math.PI / 2;
 
     const head = new Mesh(
-      new ConeGeometry(0.03, ARROW_HEAD_LENGTH, 10),
-      new MeshStandardMaterial({ color: this.currentArrowTheme.tip }),
+      new ConeGeometry(0.022, ARROW_HEAD_LENGTH, 12),
+      new MeshStandardMaterial({ color: this.currentArrowTheme.tip, roughness: 0.34, metalness: 0.2 }),
     );
     head.name = 'tip';
     head.rotation.x = -Math.PI / 2;
     head.position.z = -(ARROW_SHAFT_LENGTH * 0.5 + ARROW_HEAD_LENGTH * 0.5);
 
     const nock = new Mesh(
-      new CylinderGeometry(0.018, 0.018, 0.035, 10),
-      new MeshStandardMaterial({ color: '#f7efe0' }),
+      new CylinderGeometry(0.016, 0.016, 0.05, 12),
+      new MeshStandardMaterial({ color: '#f7efe0', roughness: 0.42 }),
     );
     nock.name = 'nock';
     nock.rotation.x = Math.PI / 2;
-    nock.position.z = ARROW_SHAFT_LENGTH * 0.5 + 0.015;
+    nock.position.z = ARROW_SHAFT_LENGTH * 0.5 + 0.02;
 
     const wrap = new Mesh(
-      new CylinderGeometry(0.014, 0.014, 0.08, 10),
-      new MeshStandardMaterial({ color: this.currentArrowTheme.wrap }),
+      new CylinderGeometry(0.012, 0.012, 0.11, 12),
+      new MeshStandardMaterial({ color: this.currentArrowTheme.wrap, roughness: 0.5 }),
     );
     wrap.name = 'wrap';
     wrap.rotation.x = Math.PI / 2;
-    wrap.position.z = ARROW_SHAFT_LENGTH * 0.24;
+    wrap.position.z = ARROW_SHAFT_LENGTH * 0.22;
+
+    const collar = new Mesh(
+      new TorusGeometry(0.014, 0.0036, 8, 20),
+      new MeshStandardMaterial({ color: '#e9d6b6', roughness: 0.34 }),
+    );
+    collar.position.set(0, 0, ARROW_SHAFT_LENGTH * 0.18);
+    collar.rotation.y = Math.PI / 2;
 
     const featherPalette = [this.currentArrowTheme.featherA, this.currentArrowTheme.featherB, this.currentArrowTheme.featherC];
     for (let index = 0; index < 3; index += 1) {
       const feather = new Mesh(
-        new PlaneGeometry(0.16, 0.05),
-        new MeshStandardMaterial({ color: featherPalette[index], side: DoubleSide }),
+        new PlaneGeometry(0.18, 0.06),
+        new MeshStandardMaterial({ color: featherPalette[index], side: DoubleSide, roughness: 0.82 }),
       );
       feather.name = `feather-${index}`;
       feather.rotation.y = Math.PI / 2;
       feather.rotation.z = (Math.PI * 2 * index) / 3;
-      feather.position.set(0, 0.028, ARROW_SHAFT_LENGTH * 0.34);
+      feather.position.set(0, 0.03, ARROW_SHAFT_LENGTH * 0.34);
       group.add(feather);
     }
 
-    group.add(shaft, head, nock, wrap);
+    group.add(shaft, head, nock, wrap, collar);
     if (!withScale) {
-      group.scale.setScalar(0.96);
+      group.scale.setScalar(0.98);
     }
 
     return group;
@@ -681,43 +755,97 @@ export class ArcheryScene {
 
   private createBowHand(): Group {
     const group = new Group();
-    const skin = new MeshStandardMaterial({ color: '#f0d2b3' });
-    const sleeve = new MeshStandardMaterial({ color: '#4f6f88' });
+    const skin = new MeshStandardMaterial({ color: '#f0d2b3', roughness: 0.8 });
+    const sleeve = new MeshStandardMaterial({ color: '#37526c', roughness: 0.82 });
+    const forearm = new Mesh(new CylinderGeometry(0.075, 0.096, 0.74, 18), sleeve);
+    forearm.position.set(0.58, -0.18, -0.45);
+    forearm.rotation.z = -0.98;
+    forearm.rotation.y = 0.18;
 
-    const forearm = new Mesh(new BoxGeometry(0.22, 0.16, 0.68), sleeve);
-    forearm.position.set(0.34, -0.12, -0.54);
-    forearm.rotation.y = 0.24;
-    forearm.rotation.z = -0.16;
+    const wrist = new Mesh(new SphereGeometry(0.07, 18, 18), skin);
+    wrist.position.set(0.22, -0.03, -0.8);
+    wrist.scale.set(0.9, 0.84, 1.08);
 
-    const wrist = new Mesh(new BoxGeometry(0.16, 0.12, 0.22), skin);
-    wrist.position.set(0.18, -0.03, -0.82);
-    wrist.rotation.y = 0.18;
+    const palm = new Mesh(new SphereGeometry(0.105, 20, 20), skin);
+    palm.position.set(0.12, 0.02, -0.9);
+    palm.scale.set(1.14, 0.8, 1.34);
 
-    const hand = new Mesh(new BoxGeometry(0.13, 0.12, 0.15), skin);
-    hand.position.set(0.13, 0.01, -0.95);
+    const thumb = this.createFinger('#f0d2b3', 0.14);
+    thumb.position.set(0.06, 0.06, -0.84);
+    thumb.rotation.set(0.4, 0.18, -0.8);
 
-    group.add(forearm, wrist, hand);
+    const fingerOffsets = [-0.054, -0.018, 0.018, 0.054];
+    fingerOffsets.forEach((offset, index) => {
+      const finger = this.createFinger('#f0d2b3', index === 0 || index === 3 ? 0.16 : 0.18);
+      finger.position.set(0.086, offset, -0.94);
+      finger.rotation.set(0.1, Math.PI / 2, 0.28);
+      group.add(finger);
+    });
+
+    group.add(forearm, wrist, palm, thumb);
     return group;
   }
 
   private createDrawHand(): Group {
     const group = new Group();
-    const skin = new MeshStandardMaterial({ color: '#f0d2b3' });
-    const sleeve = new MeshStandardMaterial({ color: '#9c4e4e' });
-
-    const forearm = new Mesh(new BoxGeometry(0.2, 0.15, 0.56), sleeve);
-    forearm.position.set(0.3, -0.11, 0.24);
+    const skin = new MeshStandardMaterial({ color: '#efd0b2', roughness: 0.8 });
+    const sleeve = new MeshStandardMaterial({ color: '#8c4541', roughness: 0.84 });
+    const forearm = new Mesh(new CylinderGeometry(0.066, 0.088, 0.68, 18), sleeve);
+    forearm.position.set(0.38, -0.12, 0.24);
+    forearm.rotation.z = -1.02;
     forearm.rotation.y = -0.5;
-    forearm.rotation.z = -0.12;
 
-    const wrist = new Mesh(new BoxGeometry(0.15, 0.11, 0.2), skin);
-    wrist.position.set(0.12, -0.04, 0.06);
-    wrist.rotation.y = -0.24;
+    const wrist = new Mesh(new SphereGeometry(0.066, 18, 18), skin);
+    wrist.position.set(0.08, -0.02, 0.03);
+    wrist.scale.set(0.92, 0.82, 1.08);
 
-    const hand = new Mesh(new BoxGeometry(0.12, 0.11, 0.14), skin);
-    hand.position.set(0.02, 0, 0);
+    const palm = new Mesh(new SphereGeometry(0.095, 18, 18), skin);
+    palm.position.set(-0.03, 0.01, -0.01);
+    palm.scale.set(1.08, 0.76, 1.22);
 
-    group.add(forearm, wrist, hand);
+    const pinchFingerTop = this.createFinger('#efd0b2', 0.14);
+    pinchFingerTop.position.set(-0.02, 0.04, -0.02);
+    pinchFingerTop.rotation.set(0.18, Math.PI / 2, -0.14);
+
+    const pinchFingerBottom = this.createFinger('#efd0b2', 0.14);
+    pinchFingerBottom.position.set(-0.02, -0.03, -0.02);
+    pinchFingerBottom.rotation.set(-0.12, Math.PI / 2, 0.06);
+
+    const thumb = this.createFinger('#efd0b2', 0.12);
+    thumb.position.set(0.01, -0.06, 0.02);
+    thumb.rotation.set(-0.28, 0.3, 0.76);
+
+    group.add(forearm, wrist, palm, pinchFingerTop, pinchFingerBottom, thumb);
+    return group;
+  }
+
+  private createFinger(color: string, length: number): Mesh {
+    const finger = new Mesh(
+      new CapsuleGeometry(0.015, Math.max(0.04, length - 0.03), 4, 10),
+      new MeshStandardMaterial({ color, roughness: 0.82 }),
+    );
+    finger.scale.set(0.86, 1, 0.92);
+    return finger;
+  }
+
+  private createArcherSilhouette(): Group {
+    const group = new Group();
+    const robe = new MeshStandardMaterial({ color: '#24445f', roughness: 0.86 });
+    const vest = new MeshStandardMaterial({ color: '#6d3b38', roughness: 0.82 });
+    const torso = new Mesh(new CylinderGeometry(0.34, 0.42, 1, 18), robe);
+    torso.position.set(0.96, -0.84, 0.12);
+    torso.rotation.z = -0.28;
+    torso.rotation.x = 0.08;
+
+    const shoulder = new Mesh(new SphereGeometry(0.28, 18, 18), robe);
+    shoulder.position.set(0.72, -0.52, -0.02);
+    shoulder.scale.set(1.28, 0.74, 1);
+
+    const chestBand = new Mesh(new CylinderGeometry(0.2, 0.23, 0.42, 16), vest);
+    chestBand.position.set(0.8, -0.7, 0.16);
+    chestBand.rotation.z = -0.34;
+
+    group.add(torso, shoulder, chestBand);
     return group;
   }
 
@@ -725,9 +853,9 @@ export class ArcheryScene {
     const material = new LineBasicMaterial({ color: '#f8fafc' });
     const line = new Line(undefined, material);
     line.geometry.setFromPoints([
-      new Vector3(-0.05, 0.36, -0.92),
-      new Vector3(-0.02, 0, -0.89),
-      new Vector3(-0.05, -0.36, -0.92),
+      new Vector3(0.16, 0.58, -1.08),
+      new Vector3(-0.02, 0.01, -0.9),
+      new Vector3(0.16, -0.58, -1.08),
     ]);
     return line;
   }
@@ -775,141 +903,78 @@ export class ArcheryScene {
       return new CanvasTexture(canvas);
     }
 
-    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, this.theme.sky);
-    gradient.addColorStop(0.46, '#ecf1ee');
-    gradient.addColorStop(0.72, '#efe7d7');
-    gradient.addColorStop(1, '#95b86a');
-    context.fillStyle = gradient;
+    const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    skyGradient.addColorStop(0, this.theme.sky);
+    skyGradient.addColorStop(0.54, '#eef2ec');
+    skyGradient.addColorStop(0.78, '#ede3d1');
+    skyGradient.addColorStop(1, '#8fb468');
+    context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.fillStyle = 'rgba(255, 229, 170, 0.84)';
+    context.fillStyle = 'rgba(255, 228, 166, 0.62)';
     context.beginPath();
-    context.arc(canvas.width * 0.18, canvas.height * 0.18, 196, 0, Math.PI * 2);
+    context.arc(canvas.width * 0.18, canvas.height * 0.2, 152, 0, Math.PI * 2);
     context.fill();
 
-    const haze = context.createLinearGradient(0, 260, 0, 720);
-    haze.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
-    haze.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    context.fillStyle = haze;
-    context.fillRect(0, 240, canvas.width, 460);
-
-    context.fillStyle = 'rgba(255, 248, 235, 0.12)';
+    context.fillStyle = 'rgba(255, 255, 255, 0.08)';
     context.beginPath();
-    context.moveTo(0, 420);
-    context.lineTo(620, 290);
-    context.lineTo(790, 620);
-    context.lineTo(0, 820);
+    context.moveTo(0, 362);
+    context.lineTo(622, 256);
+    context.lineTo(858, 538);
+    context.lineTo(0, 694);
     context.closePath();
     context.fill();
 
     context.beginPath();
-    context.moveTo(canvas.width, 410);
-    context.lineTo(canvas.width - 620, 300);
-    context.lineTo(canvas.width - 792, 630);
-    context.lineTo(canvas.width, 806);
+    context.moveTo(canvas.width, 332);
+    context.lineTo(canvas.width - 650, 252);
+    context.lineTo(canvas.width - 868, 554);
+    context.lineTo(canvas.width, 710);
     context.closePath();
     context.fill();
 
-    context.fillStyle = 'rgba(83, 111, 134, 0.14)';
+    context.fillStyle = 'rgba(87, 109, 126, 0.16)';
     context.beginPath();
-    context.moveTo(0, 760);
-    context.lineTo(460, 584);
-    context.lineTo(910, 700);
-    context.lineTo(1380, 412);
-    context.lineTo(1940, 726);
-    context.lineTo(2500, 330);
-    context.lineTo(3090, 708);
-    context.lineTo(3610, 514);
+    context.moveTo(0, 752);
+    context.lineTo(430, 618);
+    context.lineTo(844, 700);
+    context.lineTo(1318, 466);
+    context.lineTo(1884, 708);
+    context.lineTo(2462, 440);
+    context.lineTo(3030, 700);
+    context.lineTo(3622, 520);
     context.lineTo(4096, 760);
     context.lineTo(4096, 1280);
     context.lineTo(0, 1280);
     context.closePath();
     context.fill();
 
-    context.fillStyle = 'rgba(55, 77, 96, 0.18)';
+    context.fillStyle = 'rgba(56, 78, 96, 0.2)';
     context.beginPath();
-    context.moveTo(0, 860);
-    context.lineTo(520, 728);
-    context.lineTo(960, 878);
-    context.lineTo(1500, 642);
-    context.lineTo(2140, 916);
-    context.lineTo(2760, 684);
-    context.lineTo(3340, 868);
-    context.lineTo(4096, 780);
+    context.moveTo(0, 846);
+    context.lineTo(478, 726);
+    context.lineTo(972, 842);
+    context.lineTo(1514, 620);
+    context.lineTo(2106, 882);
+    context.lineTo(2708, 650);
+    context.lineTo(3318, 842);
+    context.lineTo(4096, 770);
     context.lineTo(4096, 1280);
     context.lineTo(0, 1280);
     context.closePath();
     context.fill();
 
-    context.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    context.fillRect(0, 1106, canvas.width, 18);
+    context.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    context.fillRect(0, 1112, canvas.width, 16);
 
-    context.fillStyle = 'rgba(255, 248, 239, 0.96)';
-    context.fillRect(390, 878, 560, 214);
-    context.fillRect(3146, 878, 560, 214);
+    context.fillStyle = 'rgba(246, 238, 221, 0.82)';
+    context.fillRect(0, 1134, canvas.width, 146);
 
-    context.fillStyle = 'rgba(22, 36, 63, 0.08)';
-    context.fillRect(438, 932, 464, 14);
-    context.fillRect(3194, 932, 464, 14);
-    context.fillRect(438, 994, 464, 14);
-    context.fillRect(3194, 994, 464, 14);
-
-    for (let block = 0; block < 10; block += 1) {
-      const color = CROWD_COLORS[block % CROWD_COLORS.length];
-      const leftX = 460 + block * 42;
-      const rightX = 3216 + block * 42;
-      const topY = block % 2 === 0 ? 966 : 1012;
-      context.fillStyle = color;
-      context.fillRect(leftX, topY, 24, 24);
-      context.fillRect(leftX + 6, topY - 16, 12, 16);
-      context.fillRect(rightX, topY, 24, 24);
-      context.fillRect(rightX + 6, topY - 16, 12, 16);
-    }
-
-    context.fillStyle = 'rgba(255, 251, 244, 0.96)';
-    context.fillRect(1384, 806, 1328, 262);
-    context.fillStyle = this.theme.accent;
-    context.fillRect(1528, 770, 1040, 24);
-    context.fillStyle = this.theme.accentAlt;
-    context.fillRect(1548, 836, 54, 192);
-    context.fillRect(2494, 836, 54, 192);
-    context.fillRect(1610, 854, 876, 22);
-
-    context.fillStyle = 'rgba(22, 36, 63, 0.08)';
-    context.fillRect(1656, 910, 784, 112);
-
-    context.fillStyle = '#9a7446';
-    context.fillRect(2028, 900, 12, 180);
-    context.beginPath();
-    context.arc(2034, 888, 64, 0, Math.PI * 2);
-    context.fillStyle = '#f3efe2';
-    context.fill();
-    context.beginPath();
-    context.arc(2034, 888, 52, 0, Math.PI * 2);
-    context.fillStyle = '#202632';
-    context.fill();
-    context.beginPath();
-    context.arc(2034, 888, 38, 0, Math.PI * 2);
-    context.fillStyle = '#2e66cc';
-    context.fill();
-    context.beginPath();
-    context.arc(2034, 888, 24, 0, Math.PI * 2);
-    context.fillStyle = '#ce4937';
-    context.fill();
-    context.beginPath();
-    context.arc(2034, 888, 10, 0, Math.PI * 2);
-    context.fillStyle = '#ffe6a8';
-    context.fill();
-
-    context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-    context.lineWidth = 8;
-    context.beginPath();
-    context.moveTo(1244, 1270);
-    context.lineTo(1870, 1074);
-    context.lineTo(2198, 1074);
-    context.lineTo(2824, 1270);
-    context.stroke();
+    const brush = context.createLinearGradient(0, 860, 0, 1260);
+    brush.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+    brush.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    context.fillStyle = brush;
+    context.fillRect(0, 820, canvas.width, 460);
 
     return this.enhanceTexture(new CanvasTexture(canvas));
   }
