@@ -1,6 +1,7 @@
 import { CHAPTER_MODE_IDS, getModeConfig } from '../data/modes';
 import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
 import type { HomeSupportPortraitKey, HomeSupportSelection } from '../data/homeSupport';
+import type { DailyGoalStatus } from '../data/dailyGoals';
 import { getRecentRecords, getTopScoreRecords, getTopXRecords, sortByScore } from '../data/records';
 import { getPlayerProgress } from '../game/playerProgress';
 import type { AppSettings, MatchRecord, ModeId } from '../types';
@@ -11,6 +12,7 @@ interface HomeOptions {
   settings: AppSettings;
   unlockedModes: ModeId[];
   supportSession: HomeSupportSelection[];
+  dailyGoals: DailyGoalStatus[];
   onStartMode: (mode: ModeId) => void;
   onSettings: () => void;
   onResetHoldComplete: () => void;
@@ -78,7 +80,11 @@ function createStage(options: HomeOptions): {
   header.innerHTML = '<h1 class="home-stage-title">정우의 국궁 올림픽</h1>';
 
   const main = element('div', 'home-stage-main');
-  main.append(createSupportPanel(options.supportSession), createStatusRibbon(options.records));
+  main.append(
+    createSupportPanel(options.supportSession),
+    createStatusRibbon(options.records),
+    createDailyGoalPanel(options.dailyGoals),
+  );
 
   const dock = element('nav', 'home-menu-dock');
   const startButton = element('button', 'primary-button dock-button', '게임 시작');
@@ -158,6 +164,34 @@ function createStatusRibbon(records: MatchRecord[]): HTMLElement {
   `;
 
   return ribbon;
+}
+
+function createDailyGoalPanel(goals: DailyGoalStatus[]): HTMLElement {
+  const section = element('section', 'home-daily-card');
+  const header = element('div', 'home-daily-header');
+  const completedCount = goals.filter((goal) => goal.completed).length;
+  header.innerHTML = `
+    <span class="home-daily-tag">오늘 목표</span>
+    <strong>${goals.every((goal) => goal.completed) ? '오늘 목표 완료' : `${completedCount}/${goals.length} 진행 중`}</strong>
+  `;
+
+  const list = element('div', 'home-daily-list');
+  goals.forEach((goal) => {
+    const item = element('article', 'home-daily-item');
+    item.dataset.completed = goal.completed ? 'true' : 'false';
+    item.innerHTML = `
+      <span class="home-daily-icon">${goal.icon}</span>
+      <div class="home-daily-copy">
+        <strong>${goal.title}</strong>
+      </div>
+      <span class="home-daily-state">${goal.completed ? '완료' : `${goal.progress}/${goal.target}`}</span>
+    `;
+    item.title = `${goal.title} · ${goal.detail}`;
+    list.append(item);
+  });
+
+  section.append(header, list);
+  return section;
 }
 
 function createStartSheet(options: HomeOptions, setPanelOpen: (isOpen: boolean) => void): { element: HTMLElement; open: () => void } {

@@ -1,7 +1,7 @@
 import type { ModeId, ResultBand } from '../types';
 import type { PortraitKey } from '../data/portraits';
 
-export type SpeakerName = '아빠' | '엄마' | '세연' | '정우';
+export type SpeakerName = string;
 export type StoryDelivery = 'toast' | 'overlay' | 'scene';
 export type StoryTriggerType =
   | 'first_launch'

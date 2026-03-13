@@ -24,6 +24,11 @@ describe('home screen interactions', () => {
         { speaker: '엄마', portraitKey: 'char_mom', text: '호흡부터 맞추면 괜찮아.' },
         { speaker: '세연', portraitKey: 'char_seyeon', text: '오늘도 제일 크게 응원할게!' },
       ],
+      dailyGoals: [
+        { id: 'play-one-match', icon: '🏹', title: '오늘 경기 1회', target: 1, progress: 0, completed: false, detail: '0/1 경기' },
+        { id: 'score-50', icon: '🥇', title: '한 경기 50점', target: 50, progress: 22, completed: false, detail: '22/50 점' },
+        { id: 'hit-one-x', icon: '✨', title: 'X링 1회', target: 1, progress: 1, completed: true, detail: '1/1 X' },
+      ],
       onStartMode,
       onSettings,
       onResetHoldComplete,

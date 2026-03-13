@@ -4,6 +4,7 @@ export type InputMode = 'sensor' | 'touch' | 'desktop';
 export type DominantHand = 'left' | 'right';
 export type ResultBand = 'encourage' | 'bronze' | 'silver' | 'gold';
 export type ResetScope = 'records' | 'calibration' | 'all';
+export type RivalId = 'siwoo' | 'siyeon' | 'jihwan' | 'junhong' | 'carbot' | 'pororo' | 'loopy';
 
 export interface ModeConfig {
   id: ModeId;
@@ -71,6 +72,10 @@ export interface MatchRecord {
   timestamp: number;
   calibrationVersion: number;
   resultBand: ResultBand;
+  rivalId?: RivalId | null;
+  rivalName?: string | null;
+  rivalTotalScore?: number;
+  didBeatRival?: boolean | null;
 }
 
 export interface StoryFlags {

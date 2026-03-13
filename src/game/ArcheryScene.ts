@@ -44,6 +44,7 @@ const DEFAULT_ARROW_THEME: ArrowTheme = {
   featherB: '#f0b13c',
   featherC: '#2f8f83',
 };
+const CHEER_STANDEE_KEYS: Array<keyof typeof PORTRAITS> = ['char_dad', 'char_mom', 'char_seyeon'];
 
 interface SceneTheme {
   sky: string;
@@ -560,16 +561,17 @@ export class ArcheryScene {
   }
 
   private addFamilyCheerStands(): void {
-    const keys = Object.keys(PORTRAITS) as Array<keyof typeof PORTRAITS>;
     const anchors = [
       { x: -7.4, z: -12.8, rotation: 0.16 },
-      { x: -8.8, z: -21.4, rotation: 0.18 },
       { x: 7.4, z: -12.8, rotation: -0.16 },
       { x: 8.8, z: -21.4, rotation: -0.18 },
     ];
 
-    keys.forEach((key, index) => {
+    CHEER_STANDEE_KEYS.forEach((key, index) => {
       const anchor = anchors[index];
+      if (!anchor) {
+        return;
+      }
       const standee = this.createFamilyCheerStand(key);
       standee.root.position.set(anchor.x, 0, anchor.z);
       standee.root.rotation.y = anchor.rotation;

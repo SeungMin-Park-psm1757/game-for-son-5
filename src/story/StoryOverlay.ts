@@ -130,11 +130,12 @@ export class StoryOverlay {
   private createPortrait(key: keyof typeof PORTRAITS): HTMLElement {
     const portrait = element('div', 'story-portrait');
     const info = PORTRAITS[key];
+    const portraitClass = info.renderMode === 'pixel' ? 'is-pixel' : '';
     portrait.style.setProperty('--portrait-accent', info.accent);
     portrait.style.setProperty('--portrait-soft', info.accentSoft);
     portrait.innerHTML = `
       <div class="story-portrait-media">
-        <img src="${getPortraitImageUrl(key)}" alt="${info.label}" />
+        <img class="${portraitClass}" src="${getPortraitImageUrl(key)}" alt="${info.label}" />
       </div>
       <small>${info.label}</small>
     `;

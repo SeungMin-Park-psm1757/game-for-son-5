@@ -7,7 +7,7 @@ import type { AimInputAdapter, AimSnapshot } from '../input/types';
 import { AudioService } from '../services/AudioService';
 import { HapticsService } from '../services/HapticsService';
 import type { StoryTrigger } from '../story/types';
-import type { AppSettings, CalibrationProfile, MatchRecord, ModeId } from '../types';
+import type { AppSettings, CalibrationProfile, MatchRecord, ModeId, RivalId } from '../types';
 import { element, type ScreenController } from '../ui/dom';
 import { MatchHUD, type MatchImpactBriefing } from '../ui/MatchHUD';
 import { simulateArrowFlight } from './Ballistics';
@@ -19,6 +19,7 @@ import { WindSystem } from './WindSystem';
 
 interface MatchControllerOptions {
   modeId: ModeId;
+  rivalId: RivalId | null;
   calibration: CalibrationProfile | null;
   settings: AppSettings;
   records: MatchRecord[];
@@ -76,7 +77,7 @@ export class MatchController implements ScreenController {
 
   constructor(private readonly options: MatchControllerOptions) {
     this.mode = getModeConfig(this.options.modeId);
-    this.rival = getRivalProfile(this.options.modeId);
+    this.rival = getRivalProfile(this.options.modeId, this.options.rivalId);
     this.windSystem = new WindSystem(this.mode.windDrift, this.mode.windClamp);
     this.currentWind = this.windSystem.next(0);
     this.progress = getPlayerProgress(this.options.records);
@@ -398,6 +399,10 @@ export class MatchController implements ScreenController {
       timestamp: Date.now(),
       calibrationVersion: this.options.calibration?.version ?? 0,
       resultBand,
+      rivalId: this.rival?.id ?? null,
+      rivalName: this.rival?.name ?? null,
+      rivalTotalScore: this.rivalTotalScore,
+      didBeatRival: this.rival ? this.totalScore >= this.rivalTotalScore : null,
     };
 
     const summary: MatchSummary = {
@@ -406,6 +411,7 @@ export class MatchController implements ScreenController {
       hallOfFameRank: getScoreRank(record, this.options.records),
       unlockedMode: getUnlockedNextMode(this.mode.id, this.totalScore),
       resultBand,
+      rivalId: this.rival?.id ?? null,
       rivalName: this.rival?.name ?? null,
       rivalTotalScore: this.rivalTotalScore,
       rivalArrowScores: [...this.rivalArrowScores],

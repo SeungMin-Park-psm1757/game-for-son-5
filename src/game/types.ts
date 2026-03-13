@@ -1,4 +1,4 @@
-import type { MatchRecord, ModeId, ResultBand } from '../types';
+import type { MatchRecord, ModeId, ResultBand, RivalId } from '../types';
 
 export interface ShotScore {
   score: number;
@@ -22,6 +22,7 @@ export interface MatchSummary {
   hallOfFameRank: number;
   unlockedMode: ModeId | null;
   resultBand: ResultBand;
+  rivalId: RivalId | null;
   rivalName: string | null;
   rivalTotalScore: number;
   rivalArrowScores: number[];

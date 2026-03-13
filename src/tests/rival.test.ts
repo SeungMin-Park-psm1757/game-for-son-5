@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scoreTarget, TARGET_RADIUS } from '../game/Scoring';
-import { createRivalShot, getRivalProfile } from '../data/rival';
+import { createRivalShot, getRivalProfile, pickRandomRival } from '../data/rival';
 
 describe('rival data', () => {
   it('does not create a rival for practice mode', () => {
@@ -9,8 +9,13 @@ describe('rival data', () => {
   });
 
   it('creates a rival for challenge modes', () => {
-    const rival = getRivalProfile('chapterKorea9');
-    expect(rival?.name).toBe('하린');
+    const rival = getRivalProfile('chapterKorea9', 'siwoo');
+    expect(rival?.name).toBe('시우');
+  });
+
+  it('can pick a random rival from the roster', () => {
+    const rival = pickRandomRival('chapterKorea9', () => 0.9);
+    expect(rival).not.toBeNull();
   });
 
   it('keeps rival shots within a plausible scoring area', () => {

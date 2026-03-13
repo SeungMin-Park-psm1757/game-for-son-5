@@ -11,6 +11,8 @@ import { createSettingsScreen } from '../ui/SettingsScreen';
 import { presentQuizGate } from '../ui/QuizGate';
 import { clearNode, type ScreenController } from '../ui/dom';
 import { createHomeSupportSession } from '../data/homeSupport';
+import { getDailyGoalStatuses, getGoalTitle, getNewlyCompletedGoalIds } from '../data/dailyGoals';
+import { createRivalIntroEvent, parseRivalId, pickRandomRival } from '../data/rival';
 import type { MatchSummary } from '../game/types';
 import { MatchController } from '../game/MatchController';
 import type { StoryTrigger } from '../story/types';
@@ -76,6 +78,7 @@ export class App {
           settings: this.snapshot.settings,
           unlockedModes: this.snapshot.unlockedModes,
           supportSession: createHomeSupportSession(),
+          dailyGoals: getDailyGoalStatuses(this.snapshot.records),
           onStartMode: (mode) => void this.beginMode(mode),
           onSettings: () => this.navigate(buildRoute('settings')),
           onResetHoldComplete: () =>
@@ -112,8 +115,10 @@ export class App {
 
     if (route.name === 'match') {
       const mode = parseModeId(route.params.get('mode'));
+      const rivalId = parseRivalId(route.params.get('rival'));
       const controller = new MatchController({
         modeId: mode,
+        rivalId,
         calibration: this.snapshot.calibration,
         settings: this.snapshot.settings,
         records: this.snapshot.records,
@@ -171,15 +176,23 @@ export class App {
     if (!passed) {
       return;
     }
-    this.navigate(buildRoute('match', { mode }));
-    void this.triggerStory({ type: 'first_launch' });
+
+    await this.triggerStory({ type: 'first_launch' });
+    const rival = pickRandomRival(mode);
+    if (mode !== 'practice6' && rival) {
+      await this.overlay.present(createRivalIntroEvent(mode, rival.id));
+    }
+
+    this.navigate(buildRoute('match', rival ? { mode, rival: rival.id } : { mode }));
   }
 
   private async handleMatchComplete(summary: MatchSummary): Promise<void> {
     this.lastResult = summary;
+    const previousRecords = this.snapshot.records;
+    const nextRecords = [...previousRecords, summary.record];
     this.snapshot = {
       ...this.snapshot,
-      records: [...this.snapshot.records, summary.record],
+      records: nextRecords,
     };
     saveRecords(this.snapshot.records);
 
@@ -198,6 +211,34 @@ export class App {
 
     if (summary.isPersonalBest) {
       await this.triggerStory({ type: 'personal_best', mode: summary.record.mode });
+    }
+
+    const newlyCompletedGoals = getNewlyCompletedGoalIds(previousRecords, nextRecords);
+    if (newlyCompletedGoals.length > 0) {
+      await this.overlay.present({
+        id: `daily-goal-${Date.now()}`,
+        delivery: 'overlay',
+        priority: 1,
+        trigger: { type: 'first_launch' },
+        lines: [
+          {
+            speaker: '세연',
+            portraitKey: 'char_seyeon',
+            text:
+              newlyCompletedGoals.length > 1
+                ? `오빠, 오늘 목표를 ${newlyCompletedGoals.length}개나 끝냈어! 완전 기세 좋다!`
+                : '오빠, 오늘 목표 하나 달성! 이 흐름 너무 좋다!',
+          },
+          {
+            speaker: '엄마',
+            portraitKey: 'char_mom',
+            text:
+              newlyCompletedGoals.length > 1
+                ? newlyCompletedGoals.map((goalId) => getGoalTitle(goalId)).join(' · ')
+                : `${getGoalTitle(newlyCompletedGoals[0]!)} 달성. 지금 리듬 그대로 이어가자.`,
+          },
+        ],
+      });
     }
 
     const storyEngine = new StoryEngine(this.snapshot.storyFlags);
