@@ -1693,6 +1693,184 @@ a {
   padding: 1.25rem;
 }
 
+.quiz-gate-card {
+  width: min(640px, 100%);
+  display: grid;
+  gap: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 242, 0.985), rgba(255, 247, 235, 0.975)),
+    linear-gradient(140deg, rgba(246, 200, 111, 0.14), rgba(36, 122, 109, 0.06));
+}
+
+.quiz-gate-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.quiz-gate-description {
+  margin: 0.2rem 0 0;
+}
+
+.quiz-gate-body {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.quiz-audio-row,
+.quiz-input-row,
+.quiz-gate-actions,
+.quiz-icon-area,
+.quiz-choices {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.quiz-audio-row,
+.quiz-input-row,
+.quiz-gate-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quiz-icon-area {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 24px;
+  border: 1px solid rgba(22, 36, 63, 0.08);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.quiz-fish-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.quiz-fish-icon,
+.quiz-operator,
+.quiz-answer-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quiz-fish-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  border-radius: 999px;
+  background: rgba(246, 200, 111, 0.18);
+}
+
+.quiz-operator,
+.quiz-answer-mark {
+  min-width: 36px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #8b4b09;
+}
+
+.quiz-question {
+  margin: 0;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.quiz-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.choice-btn {
+  min-height: 54px;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(22, 36, 63, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  font-weight: 700;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.choice-btn:hover {
+  transform: translateY(-1px);
+}
+
+.choice-btn[data-state="correct"] {
+  background: linear-gradient(135deg, #2a8f72, #45b58b);
+  color: white;
+}
+
+.choice-btn[data-state="wrong"] {
+  background: linear-gradient(135deg, #cc4d4d, #9f2828);
+  color: white;
+}
+
+.choice-btn[data-state="eliminated"] {
+  background: rgba(22, 36, 63, 0.08);
+  color: rgba(22, 36, 63, 0.5);
+}
+
+.quiz-word-card,
+.quiz-gate-feedback {
+  padding: 1rem 1.05rem;
+  border-radius: 24px;
+  border: 1px solid rgba(22, 36, 63, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.quiz-word-card strong {
+  display: block;
+  margin-bottom: 0.28rem;
+}
+
+.quiz-word-card p {
+  margin: 0;
+}
+
+.quiz-input {
+  min-height: 52px;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(22, 36, 63, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  outline: 0;
+}
+
+.quiz-input:focus {
+  border-color: rgba(36, 122, 109, 0.42);
+  box-shadow: 0 0 0 3px rgba(36, 122, 109, 0.12);
+}
+
+.quiz-input[data-state="correct"] {
+  border-color: rgba(42, 143, 114, 0.72);
+}
+
+.quiz-input[data-state="wrong"] {
+  border-color: rgba(159, 40, 40, 0.72);
+}
+
+.quiz-gate-feedback {
+  font-weight: 700;
+}
+
+.quiz-gate-feedback[data-tone="success"] {
+  color: #1d6f56;
+}
+
+.quiz-gate-feedback[data-tone="hint"] {
+  color: #8b4b09;
+}
+
+.quiz-gate-feedback[data-tone="error"] {
+  color: #a12f2f;
+}
+
 .story-scene-card {
   position: relative;
   overflow: hidden;
@@ -2141,6 +2319,7 @@ a {
 
   .start-sheet-card,
   .hall-modal-card,
+  .quiz-gate-card,
   .story-overlay-card,
   .story-scene-card {
     width: min(100%, 356px);
@@ -2148,9 +2327,26 @@ a {
   }
 
   .start-sheet-card,
-  .hall-modal-card {
+  .hall-modal-card,
+  .quiz-gate-card {
     padding: 0.95rem;
     border-radius: 26px;
+  }
+
+  .quiz-audio-row,
+  .quiz-input-row,
+  .quiz-gate-actions,
+  .quiz-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-icon-area {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-operator,
+  .quiz-answer-mark {
+    min-height: 26px;
   }
 
   .start-sheet-header,

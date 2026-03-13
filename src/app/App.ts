@@ -8,6 +8,7 @@ import { createHomeHallOfFame } from '../ui/HomeHallOfFame';
 import { showResetConfirmModal } from '../ui/ResetConfirmModal';
 import { createResultScreen } from '../ui/ResultScreen';
 import { createSettingsScreen } from '../ui/SettingsScreen';
+import { presentQuizGate } from '../ui/QuizGate';
 import { clearNode, type ScreenController } from '../ui/dom';
 import { createHomeSupportSession } from '../data/homeSupport';
 import type { MatchSummary } from '../game/types';
@@ -165,8 +166,12 @@ export class App {
   }
 
   private async beginMode(mode: ModeId): Promise<void> {
-    this.navigate(buildRoute('match', { mode }));
     void this.audio.resume();
+    const passed = await presentQuizGate(this.overlayHost, { modeId: mode });
+    if (!passed) {
+      return;
+    }
+    this.navigate(buildRoute('match', { mode }));
     void this.triggerStory({ type: 'first_launch' });
   }
 
