@@ -39,7 +39,7 @@ const ARROW_TIP_OFFSET = ARROW_SHAFT_LENGTH * 0.5 + ARROW_HEAD_LENGTH;
 const CROWD_COLORS = ['#d9685c', '#f0c05f', '#5ea3d8', '#7e87bf', '#6cb08b', '#d77f91'];
 const DEFAULT_ARROW_THEME: ArrowTheme = {
   tip: '#30343f',
-  wrap: '#8b5e3c',
+  grip: '#233041',
   featherA: '#d9485a',
   featherB: '#f0b13c',
   featherC: '#2f8f83',
@@ -146,6 +146,7 @@ export class ArcheryScene {
   private readonly familyStandees: FamilyStandee[] = [];
   private activeShot: ActiveShot | null = null;
   private currentFov = 64;
+  private releaseKick = 0;
 
   constructor(
     private readonly host: HTMLElement,
@@ -181,6 +182,7 @@ export class ArcheryScene {
     const arrow = this.createArrow(true);
     this.scene.add(arrow);
     const finalDirection = path[path.length - 1].clone().sub(path[Math.max(path.length - 2, 0)]).normalize();
+    this.releaseKick = 1;
 
     return new Promise((resolve) => {
       this.activeShot = {
@@ -200,7 +202,7 @@ export class ArcheryScene {
 
   public setArrowTheme(theme: ArrowTheme): void {
     this.currentArrowTheme = theme;
-    this.applyArrowTheme(this.previewArrow, theme);
+    this.applyArrowTheme(this.bowGroup, theme);
   }
 
   public destroy(): void {
@@ -220,7 +222,7 @@ export class ArcheryScene {
 
   private buildWorld(): void {
     this.scene.background = new Color(this.theme.sky);
-    this.scene.add(new AmbientLight('#fff4dd', 1.55));
+    this.scene.add(new AmbientLight('#fff4dd', 1.48));
 
     const sun = new DirectionalLight('#fff8e8', 2.7);
     sun.position.set(9, 16, 7);
@@ -282,7 +284,6 @@ export class ArcheryScene {
     this.scene.add(backdrop);
 
     this.addCeremonyGate();
-    this.addSkyFestivalRig();
 
     this.addFamilyCheerStands();
 
@@ -310,22 +311,23 @@ export class ArcheryScene {
 
   private createBowAssembly(): Group {
     const bow = new Group();
-    const wood = new MeshStandardMaterial({ color: '#73462b', roughness: 0.42 });
-    const woodDark = new MeshStandardMaterial({ color: '#5a341f', roughness: 0.48 });
-    const metal = new MeshStandardMaterial({ color: '#d5dce6', roughness: 0.24, metalness: 0.4 });
-    const gripWrap = new MeshStandardMaterial({ color: '#233041', roughness: 0.74 });
+    const wood = new MeshStandardMaterial({ color: '#7a4d2d', roughness: 0.34 });
+    const woodDark = new MeshStandardMaterial({ color: '#5b3520', roughness: 0.48 });
+    const horn = new MeshStandardMaterial({ color: '#d2b898', roughness: 0.4 });
+    const metal = new MeshStandardMaterial({ color: '#d5dce6', roughness: 0.24, metalness: 0.35 });
+    const gripWrap = new MeshStandardMaterial({ color: this.currentArrowTheme.grip, roughness: 0.76 });
 
     const upperLimb = new Mesh(
       new TubeGeometry(
         new CatmullRomCurve3([
-          new Vector3(0.15, 0.58, -1.08),
-          new Vector3(0.1, 0.34, -1.01),
-          new Vector3(0.05, 0.16, -0.95),
-          new Vector3(0.02, 0.08, -0.91),
+          new Vector3(0.14, 0.72, -1.12),
+          new Vector3(0.1, 0.52, -1.08),
+          new Vector3(0.05, 0.24, -1.01),
+          new Vector3(0.02, 0.08, -0.92),
         ]),
-        28,
-        0.018,
-        12,
+        40,
+        0.022,
+        16,
         false,
       ),
       wood,
@@ -333,102 +335,137 @@ export class ArcheryScene {
     const lowerLimb = new Mesh(
       new TubeGeometry(
         new CatmullRomCurve3([
-          new Vector3(0.15, -0.58, -1.08),
-          new Vector3(0.1, -0.34, -1.01),
-          new Vector3(0.05, -0.16, -0.95),
-          new Vector3(0.02, -0.08, -0.91),
+          new Vector3(0.14, -0.72, -1.12),
+          new Vector3(0.1, -0.52, -1.08),
+          new Vector3(0.05, -0.24, -1.01),
+          new Vector3(0.02, -0.08, -0.92),
         ]),
-        28,
-        0.018,
-        12,
+        40,
+        0.022,
+        16,
         false,
       ),
       wood,
     );
 
-    const riser = new Mesh(new CapsuleGeometry(0.045, 0.56, 6, 16), woodDark);
-    riser.position.set(0.02, 0, -0.91);
-    riser.rotation.z = 0.05;
+    const upperTip = new Mesh(new CapsuleGeometry(0.014, 0.08, 4, 10), horn);
+    upperTip.position.set(0.145, 0.76, -1.14);
+    upperTip.rotation.z = -0.28;
 
-    const grip = new Mesh(new CapsuleGeometry(0.05, 0.16, 6, 14), gripWrap);
-    grip.position.set(0.01, -0.02, -0.88);
+    const lowerTip = upperTip.clone();
+    lowerTip.position.y = -0.76;
+    lowerTip.rotation.z = 0.28;
+
+    const riser = new Mesh(new CapsuleGeometry(0.056, 0.58, 6, 18), woodDark);
+    riser.position.set(0.024, 0, -0.9);
+    riser.rotation.z = 0.06;
+
+    const grip = new Mesh(new CapsuleGeometry(0.056, 0.19, 6, 16), gripWrap);
+    grip.name = 'grip';
+    grip.position.set(0.01, -0.02, -0.86);
     grip.rotation.z = 0.11;
 
-    const sightBar = new Mesh(new CylinderGeometry(0.008, 0.008, 0.26, 10), metal);
-    sightBar.position.set(0.12, 0.1, -0.91);
+    const gripCollarTop = new Mesh(new TorusGeometry(0.046, 0.004, 8, 24), horn);
+    gripCollarTop.position.set(0.016, 0.08, -0.87);
+    gripCollarTop.rotation.y = Math.PI / 2;
+
+    const gripCollarBottom = gripCollarTop.clone();
+    gripCollarBottom.position.y = -0.12;
+
+    const sightBar = new Mesh(new CylinderGeometry(0.008, 0.008, 0.24, 10), metal);
+    sightBar.position.set(0.12, 0.12, -0.9);
     sightBar.rotation.z = Math.PI / 2;
 
-    const sightRing = new Mesh(new TorusGeometry(0.038, 0.006, 8, 22), metal);
-    sightRing.position.set(0.23, 0.1, -0.91);
+    const sightRing = new Mesh(new TorusGeometry(0.033, 0.005, 8, 20), metal);
+    sightRing.position.set(0.22, 0.12, -0.9);
     sightRing.rotation.y = Math.PI / 2;
 
-    const arrowRest = new Mesh(new CylinderGeometry(0.006, 0.006, 0.16, 8), metal);
-    arrowRest.position.set(0.08, 0.02, -0.91);
+    const arrowRest = new Mesh(new CylinderGeometry(0.006, 0.006, 0.12, 8), metal);
+    arrowRest.position.set(0.08, 0.016, -0.91);
     arrowRest.rotation.z = Math.PI / 2;
 
-    bow.add(upperLimb, lowerLimb, riser, grip, sightBar, sightRing, arrowRest);
+    const nockingPoint = new Mesh(new CylinderGeometry(0.008, 0.008, 0.028, 8), horn);
+    nockingPoint.position.set(-0.012, 0.005, -0.9);
+    nockingPoint.rotation.x = Math.PI / 2;
+
+    bow.add(
+      upperLimb,
+      lowerLimb,
+      upperTip,
+      lowerTip,
+      riser,
+      grip,
+      gripCollarTop,
+      gripCollarBottom,
+      sightBar,
+      sightRing,
+      arrowRest,
+      nockingPoint,
+    );
     return bow;
   }
 
   private addGrandstand(side: -1 | 1): void {
     const crowdMaterials = CROWD_COLORS.map((color) => new MeshStandardMaterial({ color }));
+    const standMaterial = new MeshStandardMaterial({ color: side < 0 ? '#5b6d7e' : '#66788a' });
 
-    for (let row = 0; row < 5; row += 1) {
-      const stand = new Mesh(
-        new BoxGeometry(7.2, 0.8 + row * 0.18, 4.6),
-        new MeshStandardMaterial({ color: row % 2 === 0 ? '#59697a' : '#6c7f90' }),
-      );
-      stand.position.set(side * (9.2 + row * 2.8), 0.45 + row * 0.12, -18 - row * 6.4);
+    for (let row = 0; row < 3; row += 1) {
+      const stand = new Mesh(new BoxGeometry(4.8, 0.62 + row * 0.14, 4.4), standMaterial);
+      stand.position.set(side * (8 + row * 1.9), 0.36 + row * 0.12, -17.2 - row * 5.6);
       this.scene.add(stand);
 
-      for (let seat = 0; seat < 7; seat += 1) {
-        for (let depth = 0; depth < 3; depth += 1) {
+      for (let seat = 0; seat < 4; seat += 1) {
+        for (let depth = 0; depth < 2; depth += 1) {
           const spectator = new Mesh(
-            new BoxGeometry(0.34, 0.42, 0.34),
+            new BoxGeometry(0.28, 0.34, 0.26),
             crowdMaterials[(seat + depth + row) % crowdMaterials.length],
           );
           spectator.position.set(
-            side * (7.3 + row * 2.75),
-            1 + row * 0.12 + depth * 0.08,
-            -16.8 - row * 6.3 - seat * 0.58,
+            side * (6.6 + row * 1.75 + depth * 0.32),
+            0.86 + row * 0.12 + depth * 0.08,
+            -16.4 - row * 5.6 - seat * 0.56,
           );
-          spectator.position.x += side * depth * 0.38;
           this.scene.add(spectator);
         }
       }
+
+      const colorPlate = new Mesh(
+        new BoxGeometry(0.28, 0.9, 1.56),
+        new MeshStandardMaterial({ color: row % 2 === 0 ? this.theme.accent : this.theme.accentAlt }),
+      );
+      colorPlate.position.set(side * (5.6 + row * 1.8), 1.02 + row * 0.12, -17.4 - row * 5.55);
+      this.scene.add(colorPlate);
     }
   }
 
   private addBannerRig(side: -1 | 1): void {
-    const poleLeft = new Mesh(
-      new BoxGeometry(0.16, 5, 0.16),
-      new MeshStandardMaterial({ color: '#ebe7de' }),
-    );
-    poleLeft.position.set(side * 5.7, 2.5, -17);
-    this.scene.add(poleLeft);
+    const postMaterial = new MeshStandardMaterial({ color: '#eee4d2', roughness: 0.72 });
+    const plateMaterial = new MeshStandardMaterial({ color: '#f8f2e8', roughness: 0.62 });
 
-    const poleRight = poleLeft.clone();
-    poleRight.position.z = -24.5;
-    this.scene.add(poleRight);
+    const frontPost = new Mesh(new BoxGeometry(0.14, 3.8, 0.14), postMaterial);
+    frontPost.position.set(side * 5.3, 1.92, -16.6);
+    const backPost = frontPost.clone();
+    backPost.position.z = -24;
 
-    const rail = new Mesh(
-      new BoxGeometry(0.16, 0.16, 7.8),
-      new MeshStandardMaterial({ color: '#ebe7de' }),
-    );
-    rail.position.set(side * 5.7, 4.7, -20.75);
-    this.scene.add(rail);
+    const topRail = new Mesh(new BoxGeometry(0.14, 0.14, 7.5), postMaterial);
+    topRail.position.set(side * 5.3, 3.7, -20.3);
+
+    const sidePlate = new Mesh(new BoxGeometry(0.98, 3.3, 0.08), plateMaterial);
+    sidePlate.position.set(side * 5.05, 2.08, -20.3);
+    sidePlate.rotation.y = side > 0 ? -0.08 : 0.08;
 
     const sideBanner = new Mesh(
-      new PlaneGeometry(1.68, 4.5),
+      new PlaneGeometry(0.84, 2.88),
       new MeshStandardMaterial({
         map: this.createSideMarkerTexture(side),
         side: DoubleSide,
         transparent: true,
       }),
     );
-    sideBanner.position.set(side * 5.42, 2.58, -20.75);
+    sideBanner.position.set(side * 4.98, 2.1, -20.3);
     sideBanner.rotation.y = side > 0 ? -0.08 : 0.08;
-    this.scene.add(sideBanner);
+
+    this.scene.add(frontPost, backPost, topRail, sidePlate, sideBanner);
   }
 
   private addCeremonyGate(): void {
@@ -438,52 +475,29 @@ export class ArcheryScene {
       plate: new MeshStandardMaterial({ color: this.theme.accentAlt, roughness: 0.5 }),
     };
 
-    const leftPost = new Mesh(new BoxGeometry(0.42, 5.8, 0.42), materials.post);
-    leftPost.position.set(-4.55, 2.92, -24.1);
+    const leftPost = new Mesh(new BoxGeometry(0.42, 5.4, 0.42), materials.post);
+    leftPost.position.set(-4.15, 2.72, -24.1);
     const rightPost = leftPost.clone();
-    rightPost.position.x = 4.55;
+    rightPost.position.x = 4.15;
 
-    const topBeam = new Mesh(new BoxGeometry(9.8, 0.44, 0.44), materials.post);
-    topBeam.position.set(0, 5.72, -24.1);
+    const topBeam = new Mesh(new BoxGeometry(8.9, 0.44, 0.44), materials.post);
+    topBeam.position.set(0, 5.22, -24.1);
 
-    const trimBeam = new Mesh(new BoxGeometry(9.2, 0.12, 0.12), materials.trim);
-    trimBeam.position.set(0, 5.42, -23.82);
+    const trimBeam = new Mesh(new BoxGeometry(8.2, 0.18, 0.18), materials.trim);
+    trimBeam.position.set(0, 4.9, -23.84);
 
-    const leftPlate = new Mesh(new BoxGeometry(1.15, 2.4, 0.08), materials.plate);
-    leftPlate.position.set(-5.06, 3.34, -23.8);
+    const plate = new Mesh(new BoxGeometry(2.9, 0.68, 0.12), materials.plate);
+    plate.position.set(0, 4.55, -23.72);
+
+    const leftPlate = new Mesh(new BoxGeometry(0.82, 1.9, 0.08), materials.plate);
+    leftPlate.position.set(-4.62, 2.86, -23.8);
     const rightPlate = leftPlate.clone();
-    rightPlate.position.x = 5.06;
+    rightPlate.position.x = 4.62;
 
-    this.scene.add(leftPost, rightPost, topBeam, trimBeam, leftPlate, rightPlate);
-  }
+    const laneAccent = new Mesh(new BoxGeometry(3.9, 0.12, 0.12), materials.trim);
+    laneAccent.position.set(0, 2.66, -24.02);
 
-  private addSkyFestivalRig(): void {
-    const ropeMaterial = new MeshStandardMaterial({ color: '#f7efe0', roughness: 0.62 });
-    const pennantColors = [this.theme.accent, this.theme.accentAlt, '#f7d48f'];
-    const rows = [{ y: 7.45, z: -20.6, width: 11.2, pennants: 11, rotationZ: 0.012 }];
-
-    rows.forEach((row, rowIndex) => {
-      const rope = new Mesh(new BoxGeometry(row.width, 0.03, 0.03), ropeMaterial);
-      rope.position.set(0, row.y, row.z);
-      rope.rotation.z = row.rotationZ;
-      this.scene.add(rope);
-
-      const spacing = row.width / (row.pennants - 1);
-      for (let index = 0; index < row.pennants; index += 1) {
-        const pennant = new Mesh(
-          new PlaneGeometry(0.34, 0.62),
-          new MeshStandardMaterial({
-            color: pennantColors[(index + rowIndex) % pennantColors.length],
-            side: DoubleSide,
-            roughness: 0.56,
-          }),
-        );
-        pennant.position.set(-row.width * 0.5 + spacing * index, row.y - 0.3 - (index % 2) * 0.05, row.z);
-        pennant.rotation.x = -0.08;
-        pennant.rotation.z = (index % 2 === 0 ? 1 : -1) * 0.06;
-        this.scene.add(pennant);
-      }
-    });
+    this.scene.add(leftPost, rightPost, topBeam, trimBeam, plate, leftPlate, rightPlate, laneAccent);
   }
 
   private addFamilyCheerStands(): void {
@@ -609,19 +623,24 @@ export class ArcheryScene {
 
   private updateBow(drawRatio: number): void {
     const clamped = Math.max(0, Math.min(drawRatio, 1));
-    this.previewArrow.position.z = -0.93 + clamped * 0.24;
-    this.previewArrow.position.x = 0.03 - clamped * 0.034;
-    this.previewArrow.position.y = 0.01 + clamped * 0.004;
+    this.releaseKick += (0 - this.releaseKick) * 0.22;
+    const releaseOffset = this.releaseKick * 0.08;
+    this.previewArrow.position.z = -0.92 + clamped * 0.26 + releaseOffset * 0.35;
+    this.previewArrow.position.x = 0.03 - clamped * 0.04 - releaseOffset * 0.18;
+    this.previewArrow.position.y = 0.008 + clamped * 0.006 + releaseOffset * 0.04;
     const points = [
-      new Vector3(0.16, 0.58, -1.08),
-      new Vector3(-0.02 - clamped * 0.13, 0.01, -0.9 + clamped * 0.04),
-      new Vector3(0.16, -0.58, -1.08),
+      new Vector3(0.15, 0.72, -1.13),
+      new Vector3(-0.01 - clamped * 0.15 - releaseOffset * 0.1, 0.005, -0.9 + clamped * 0.06),
+      new Vector3(0.15, -0.72, -1.13),
     ];
     this.stringLine.geometry.setFromPoints(points);
     this.previewArrow.visible = !this.activeShot;
-    this.drawHand.position.set(-0.03 - clamped * 0.14, -0.01, -0.9 + clamped * 0.04);
-    this.drawHand.rotation.y = -0.32 - clamped * 0.26;
-    this.drawHand.rotation.z = -0.05 + clamped * 0.06;
+    this.drawHand.position.set(-0.035 - clamped * 0.16 - releaseOffset * 0.12, -0.012, -0.91 + clamped * 0.06);
+    this.drawHand.rotation.y = -0.35 - clamped * 0.32;
+    this.drawHand.rotation.z = -0.04 + clamped * 0.08;
+    this.drawHand.rotation.x = 0.08 + clamped * 0.05;
+    this.bowGroup.rotation.x = releaseOffset * 0.08;
+    this.bowGroup.rotation.y = -0.08 - clamped * 0.04 - releaseOffset * 0.12;
   }
 
   private updateShot(): void {
@@ -695,15 +714,15 @@ export class ArcheryScene {
     const group = new Group();
 
     const shaft = new Mesh(
-      new CylinderGeometry(0.009, 0.011, ARROW_SHAFT_LENGTH, 14),
-      new MeshStandardMaterial({ color: '#c59a62', roughness: 0.5 }),
+      new CylinderGeometry(0.008, 0.01, ARROW_SHAFT_LENGTH, 16),
+      new MeshStandardMaterial({ color: '#c79a61', roughness: 0.46 }),
     );
     shaft.name = 'shaft';
     shaft.rotation.x = Math.PI / 2;
 
     const head = new Mesh(
-      new ConeGeometry(0.022, ARROW_HEAD_LENGTH, 12),
-      new MeshStandardMaterial({ color: this.currentArrowTheme.tip, roughness: 0.34, metalness: 0.2 }),
+      new ConeGeometry(0.018, ARROW_HEAD_LENGTH, 12),
+      new MeshStandardMaterial({ color: this.currentArrowTheme.tip, roughness: 0.28, metalness: 0.28 }),
     );
     head.name = 'tip';
     head.rotation.x = -Math.PI / 2;
@@ -717,35 +736,34 @@ export class ArcheryScene {
     nock.rotation.x = Math.PI / 2;
     nock.position.z = ARROW_SHAFT_LENGTH * 0.5 + 0.02;
 
-    const wrap = new Mesh(
-      new CylinderGeometry(0.012, 0.012, 0.11, 12),
-      new MeshStandardMaterial({ color: this.currentArrowTheme.wrap, roughness: 0.5 }),
+    const nockGuide = new Mesh(
+      new CylinderGeometry(0.01, 0.01, 0.06, 10),
+      new MeshStandardMaterial({ color: '#ece5d7', roughness: 0.4 }),
     );
-    wrap.name = 'wrap';
-    wrap.rotation.x = Math.PI / 2;
-    wrap.position.z = ARROW_SHAFT_LENGTH * 0.22;
+    nockGuide.rotation.x = Math.PI / 2;
+    nockGuide.position.z = ARROW_SHAFT_LENGTH * 0.45;
 
     const collar = new Mesh(
       new TorusGeometry(0.014, 0.0036, 8, 20),
       new MeshStandardMaterial({ color: '#e9d6b6', roughness: 0.34 }),
     );
-    collar.position.set(0, 0, ARROW_SHAFT_LENGTH * 0.18);
+    collar.position.set(0, 0, ARROW_SHAFT_LENGTH * 0.28);
     collar.rotation.y = Math.PI / 2;
 
     const featherPalette = [this.currentArrowTheme.featherA, this.currentArrowTheme.featherB, this.currentArrowTheme.featherC];
     for (let index = 0; index < 3; index += 1) {
       const feather = new Mesh(
-        new PlaneGeometry(0.18, 0.06),
+        new PlaneGeometry(0.17, 0.052),
         new MeshStandardMaterial({ color: featherPalette[index], side: DoubleSide, roughness: 0.82 }),
       );
       feather.name = `feather-${index}`;
       feather.rotation.y = Math.PI / 2;
       feather.rotation.z = (Math.PI * 2 * index) / 3;
-      feather.position.set(0, 0.03, ARROW_SHAFT_LENGTH * 0.34);
+      feather.position.set(0, 0.025, ARROW_SHAFT_LENGTH * 0.37);
       group.add(feather);
     }
 
-    group.add(shaft, head, nock, wrap, collar);
+    group.add(shaft, head, nock, nockGuide, collar);
     if (!withScale) {
       group.scale.setScalar(0.98);
     }
@@ -757,32 +775,36 @@ export class ArcheryScene {
     const group = new Group();
     const skin = new MeshStandardMaterial({ color: '#f0d2b3', roughness: 0.8 });
     const sleeve = new MeshStandardMaterial({ color: '#37526c', roughness: 0.82 });
-    const forearm = new Mesh(new CylinderGeometry(0.075, 0.096, 0.74, 18), sleeve);
-    forearm.position.set(0.58, -0.18, -0.45);
+    const forearm = new Mesh(new CylinderGeometry(0.074, 0.098, 0.76, 18), sleeve);
+    forearm.position.set(0.6, -0.16, -0.44);
     forearm.rotation.z = -0.98;
     forearm.rotation.y = 0.18;
 
+    const elbowGuard = new Mesh(new CapsuleGeometry(0.046, 0.16, 4, 12), new MeshStandardMaterial({ color: '#14283b', roughness: 0.82 }));
+    elbowGuard.position.set(0.84, -0.34, -0.28);
+    elbowGuard.rotation.z = -0.94;
+
     const wrist = new Mesh(new SphereGeometry(0.07, 18, 18), skin);
     wrist.position.set(0.22, -0.03, -0.8);
-    wrist.scale.set(0.9, 0.84, 1.08);
+    wrist.scale.set(0.92, 0.8, 1.1);
 
-    const palm = new Mesh(new SphereGeometry(0.105, 20, 20), skin);
-    palm.position.set(0.12, 0.02, -0.9);
-    palm.scale.set(1.14, 0.8, 1.34);
+    const palm = new Mesh(new SphereGeometry(0.108, 20, 20), skin);
+    palm.position.set(0.12, 0.015, -0.9);
+    palm.scale.set(1.18, 0.78, 1.42);
 
-    const thumb = this.createFinger('#f0d2b3', 0.14);
-    thumb.position.set(0.06, 0.06, -0.84);
-    thumb.rotation.set(0.4, 0.18, -0.8);
+    const thumb = this.createFingerChain('#f0d2b3', [0.09, 0.07, 0.05], 0.015);
+    thumb.position.set(0.055, 0.06, -0.84);
+    thumb.rotation.set(0.34, 0.18, -0.72);
 
     const fingerOffsets = [-0.054, -0.018, 0.018, 0.054];
     fingerOffsets.forEach((offset, index) => {
-      const finger = this.createFinger('#f0d2b3', index === 0 || index === 3 ? 0.16 : 0.18);
+      const finger = this.createFingerChain('#f0d2b3', index === 0 || index === 3 ? [0.1, 0.075, 0.056] : [0.112, 0.082, 0.06], 0.014);
       finger.position.set(0.086, offset, -0.94);
-      finger.rotation.set(0.1, Math.PI / 2, 0.28);
+      finger.rotation.set(0.14, Math.PI / 2, 0.24);
       group.add(finger);
     });
 
-    group.add(forearm, wrist, palm, thumb);
+    group.add(forearm, elbowGuard, wrist, palm, thumb);
     return group;
   }
 
@@ -790,7 +812,7 @@ export class ArcheryScene {
     const group = new Group();
     const skin = new MeshStandardMaterial({ color: '#efd0b2', roughness: 0.8 });
     const sleeve = new MeshStandardMaterial({ color: '#8c4541', roughness: 0.84 });
-    const forearm = new Mesh(new CylinderGeometry(0.066, 0.088, 0.68, 18), sleeve);
+    const forearm = new Mesh(new CylinderGeometry(0.066, 0.09, 0.7, 18), sleeve);
     forearm.position.set(0.38, -0.12, 0.24);
     forearm.rotation.z = -1.02;
     forearm.rotation.y = -0.5;
@@ -803,28 +825,50 @@ export class ArcheryScene {
     palm.position.set(-0.03, 0.01, -0.01);
     palm.scale.set(1.08, 0.76, 1.22);
 
-    const pinchFingerTop = this.createFinger('#efd0b2', 0.14);
-    pinchFingerTop.position.set(-0.02, 0.04, -0.02);
-    pinchFingerTop.rotation.set(0.18, Math.PI / 2, -0.14);
+    const pinchFingerTop = this.createFingerChain('#efd0b2', [0.09, 0.07, 0.05], 0.014);
+    pinchFingerTop.position.set(-0.028, 0.04, -0.015);
+    pinchFingerTop.rotation.set(0.14, Math.PI / 2, -0.18);
 
-    const pinchFingerBottom = this.createFinger('#efd0b2', 0.14);
-    pinchFingerBottom.position.set(-0.02, -0.03, -0.02);
-    pinchFingerBottom.rotation.set(-0.12, Math.PI / 2, 0.06);
+    const pinchFingerBottom = this.createFingerChain('#efd0b2', [0.09, 0.07, 0.05], 0.014);
+    pinchFingerBottom.position.set(-0.028, -0.03, -0.015);
+    pinchFingerBottom.rotation.set(-0.08, Math.PI / 2, 0.02);
 
-    const thumb = this.createFinger('#efd0b2', 0.12);
+    const thumb = this.createFingerChain('#efd0b2', [0.08, 0.06], 0.015);
     thumb.position.set(0.01, -0.06, 0.02);
     thumb.rotation.set(-0.28, 0.3, 0.76);
 
-    group.add(forearm, wrist, palm, pinchFingerTop, pinchFingerBottom, thumb);
+    const anchorWrap = new Mesh(
+      new CapsuleGeometry(0.016, 0.06, 4, 10),
+      new MeshStandardMaterial({ color: '#f5efe3', roughness: 0.36 }),
+    );
+    anchorWrap.position.set(-0.02, 0, -0.04);
+    anchorWrap.rotation.set(0.06, 0.18, Math.PI / 2);
+
+    group.add(forearm, wrist, palm, pinchFingerTop, pinchFingerBottom, thumb, anchorWrap);
     return group;
   }
 
-  private createFinger(color: string, length: number): Mesh {
+  private createFingerChain(color: string, lengths: number[], radius: number): Group {
+    const chain = new Group();
+    let zOffset = 0;
+
+    lengths.forEach((length, index) => {
+      const segment = this.createFingerSegment(color, length, radius - index * 0.0015);
+      segment.position.z = zOffset;
+      segment.rotation.y = 0.08 + index * 0.06;
+      zOffset += length * 0.52;
+      chain.add(segment);
+    });
+
+    return chain;
+  }
+
+  private createFingerSegment(color: string, length: number, radius: number): Mesh {
     const finger = new Mesh(
-      new CapsuleGeometry(0.015, Math.max(0.04, length - 0.03), 4, 10),
+      new CapsuleGeometry(Math.max(0.01, radius), Math.max(0.035, length - radius * 1.6), 4, 12),
       new MeshStandardMaterial({ color, roughness: 0.82 }),
     );
-    finger.scale.set(0.86, 1, 0.92);
+    finger.scale.set(0.92, 1, 0.92);
     return finger;
   }
 
@@ -832,20 +876,35 @@ export class ArcheryScene {
     const group = new Group();
     const robe = new MeshStandardMaterial({ color: '#24445f', roughness: 0.86 });
     const vest = new MeshStandardMaterial({ color: '#6d3b38', roughness: 0.82 });
-    const torso = new Mesh(new CylinderGeometry(0.34, 0.42, 1, 18), robe);
-    torso.position.set(0.96, -0.84, 0.12);
-    torso.rotation.z = -0.28;
+    const skin = new MeshStandardMaterial({ color: '#f0d2b3', roughness: 0.84 });
+
+    const torso = new Mesh(new CapsuleGeometry(0.28, 0.92, 8, 18), robe);
+    torso.position.set(0.98, -0.86, 0.08);
+    torso.rotation.z = -0.26;
     torso.rotation.x = 0.08;
 
-    const shoulder = new Mesh(new SphereGeometry(0.28, 18, 18), robe);
-    shoulder.position.set(0.72, -0.52, -0.02);
-    shoulder.scale.set(1.28, 0.74, 1);
-
-    const chestBand = new Mesh(new CylinderGeometry(0.2, 0.23, 0.42, 16), vest);
-    chestBand.position.set(0.8, -0.7, 0.16);
+    const chestBand = new Mesh(new CapsuleGeometry(0.17, 0.48, 6, 14), vest);
+    chestBand.position.set(0.84, -0.72, 0.16);
     chestBand.rotation.z = -0.34;
 
-    group.add(torso, shoulder, chestBand);
+    const neck = new Mesh(new CapsuleGeometry(0.06, 0.1, 4, 10), skin);
+    neck.position.set(0.73, -0.36, 0.06);
+    neck.rotation.z = -0.2;
+
+    const head = new Mesh(new SphereGeometry(0.15, 20, 20), skin);
+    head.position.set(0.58, -0.18, 0.03);
+    head.scale.set(0.92, 1.08, 0.94);
+
+    const hair = new Mesh(new SphereGeometry(0.152, 20, 20), new MeshStandardMaterial({ color: '#172132', roughness: 0.86 }));
+    hair.position.copy(head.position);
+    hair.position.y += 0.03;
+    hair.scale.set(0.92, 0.82, 0.94);
+
+    const rearShoulder = new Mesh(new CapsuleGeometry(0.14, 0.3, 6, 14), robe);
+    rearShoulder.position.set(0.72, -0.5, 0.04);
+    rearShoulder.rotation.z = -0.88;
+
+    group.add(torso, chestBand, neck, head, hair, rearShoulder);
     return group;
   }
 
@@ -853,9 +912,9 @@ export class ArcheryScene {
     const material = new LineBasicMaterial({ color: '#f8fafc' });
     const line = new Line(undefined, material);
     line.geometry.setFromPoints([
-      new Vector3(0.16, 0.58, -1.08),
-      new Vector3(-0.02, 0.01, -0.9),
-      new Vector3(0.16, -0.58, -1.08),
+      new Vector3(0.15, 0.72, -1.13),
+      new Vector3(-0.01, 0.005, -0.9),
+      new Vector3(0.15, -0.72, -1.13),
     ]);
     return line;
   }
@@ -905,8 +964,8 @@ export class ArcheryScene {
 
     const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
     skyGradient.addColorStop(0, this.theme.sky);
-    skyGradient.addColorStop(0.54, '#eef2ec');
-    skyGradient.addColorStop(0.78, '#ede3d1');
+    skyGradient.addColorStop(0.58, '#edf1eb');
+    skyGradient.addColorStop(0.8, '#e5dccd');
     skyGradient.addColorStop(1, '#8fb468');
     context.fillStyle = skyGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -916,65 +975,61 @@ export class ArcheryScene {
     context.arc(canvas.width * 0.18, canvas.height * 0.2, 152, 0, Math.PI * 2);
     context.fill();
 
-    context.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    context.fillStyle = 'rgba(78, 102, 122, 0.16)';
     context.beginPath();
-    context.moveTo(0, 362);
-    context.lineTo(622, 256);
-    context.lineTo(858, 538);
-    context.lineTo(0, 694);
-    context.closePath();
-    context.fill();
-
-    context.beginPath();
-    context.moveTo(canvas.width, 332);
-    context.lineTo(canvas.width - 650, 252);
-    context.lineTo(canvas.width - 868, 554);
-    context.lineTo(canvas.width, 710);
-    context.closePath();
-    context.fill();
-
-    context.fillStyle = 'rgba(87, 109, 126, 0.16)';
-    context.beginPath();
-    context.moveTo(0, 752);
-    context.lineTo(430, 618);
-    context.lineTo(844, 700);
-    context.lineTo(1318, 466);
-    context.lineTo(1884, 708);
-    context.lineTo(2462, 440);
-    context.lineTo(3030, 700);
-    context.lineTo(3622, 520);
-    context.lineTo(4096, 760);
-    context.lineTo(4096, 1280);
-    context.lineTo(0, 1280);
-    context.closePath();
-    context.fill();
-
-    context.fillStyle = 'rgba(56, 78, 96, 0.2)';
-    context.beginPath();
-    context.moveTo(0, 846);
-    context.lineTo(478, 726);
-    context.lineTo(972, 842);
-    context.lineTo(1514, 620);
-    context.lineTo(2106, 882);
-    context.lineTo(2708, 650);
-    context.lineTo(3318, 842);
-    context.lineTo(4096, 770);
+    context.moveTo(0, 812);
+    context.lineTo(520, 642);
+    context.lineTo(1120, 748);
+    context.lineTo(1720, 574);
+    context.lineTo(2360, 744);
+    context.lineTo(2980, 604);
+    context.lineTo(3610, 738);
+    context.lineTo(4096, 690);
     context.lineTo(4096, 1280);
     context.lineTo(0, 1280);
     context.closePath();
     context.fill();
 
     context.fillStyle = 'rgba(255, 255, 255, 0.18)';
-    context.fillRect(0, 1112, canvas.width, 16);
+    context.fillRect(0, 1002, canvas.width, 14);
 
-    context.fillStyle = 'rgba(246, 238, 221, 0.82)';
-    context.fillRect(0, 1134, canvas.width, 146);
+    context.fillStyle = 'rgba(244, 236, 220, 0.9)';
+    context.fillRect(0, 1018, canvas.width, 168);
 
-    const brush = context.createLinearGradient(0, 860, 0, 1260);
-    brush.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-    brush.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    context.fillStyle = brush;
-    context.fillRect(0, 820, canvas.width, 460);
+    context.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    context.beginPath();
+    context.moveTo(canvas.width * 0.39, 1280);
+    context.lineTo(canvas.width * 0.47, 902);
+    context.lineTo(canvas.width * 0.53, 902);
+    context.lineTo(canvas.width * 0.61, 1280);
+    context.closePath();
+    context.fill();
+
+    const leftStandColor = this.chapterId === 'practice' ? '#6f7f90' : this.theme.accentAlt;
+    const rightStandColor = this.chapterId === 'usa' ? '#325da8' : this.theme.accent;
+    context.fillStyle = leftStandColor;
+    context.fillRect(348, 868, 244, 118);
+    context.fillRect(600, 850, 90, 136);
+    context.fillStyle = rightStandColor;
+    context.fillRect(canvas.width - 592, 868, 244, 118);
+    context.fillRect(canvas.width - 690, 850, 90, 136);
+
+    context.fillStyle = 'rgba(255, 250, 240, 0.84)';
+    context.fillRect(760, 392, 2576, 396);
+    context.fillStyle = this.theme.accent;
+    context.fillRect(1120, 518, 1856, 22);
+    context.fillRect(1480, 652, 1136, 22);
+
+    context.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    context.fillRect(900, 440, 96, 280);
+    context.fillRect(canvas.width - 996, 440, 96, 280);
+
+    const accentStrip = context.createLinearGradient(0, 0, canvas.width, 0);
+    accentStrip.addColorStop(0, this.theme.accentSoft);
+    accentStrip.addColorStop(0.5, 'rgba(255, 248, 234, 0.94)');
+    accentStrip.addColorStop(1, this.theme.accentSoft);
+    context.fillStyle = accentStrip;
+    context.fillRect(1110, 560, 1876, 10);
 
     return this.enhanceTexture(new CanvasTexture(canvas));
   }
@@ -1058,21 +1113,29 @@ export class ArcheryScene {
     }
 
     if (icon === 'festival') {
-      const colors = ['#2563eb', '#111827', '#ef4444', '#f59e0b', '#16a34a'];
-      const positions = [
-        [-82, 0],
-        [-22, 0],
-        [38, 0],
-        [-52, 54],
-        [8, 54],
-      ];
-      positions.forEach(([x, y], index) => {
+      context.beginPath();
+      context.arc(0, 0, 88, 0, Math.PI * 2);
+      context.fillStyle = '#fffaf1';
+      context.fill();
+      context.lineWidth = 14;
+      context.strokeStyle = '#d97706';
+      context.stroke();
+
+      context.beginPath();
+      context.arc(0, 0, 56, 0, Math.PI * 2);
+      context.lineWidth = 10;
+      context.strokeStyle = '#2563eb';
+      context.stroke();
+
+      for (let index = 0; index < 8; index += 1) {
+        const angle = (Math.PI * 2 * index) / 8;
         context.beginPath();
-        context.arc(x, y, 32, 0, Math.PI * 2);
-        context.lineWidth = 10;
-        context.strokeStyle = colors[index];
+        context.moveTo(Math.cos(angle) * 18, Math.sin(angle) * 18);
+        context.lineTo(Math.cos(angle) * 72, Math.sin(angle) * 72);
+        context.strokeStyle = index % 2 === 0 ? '#ef4444' : '#247a6d';
+        context.lineWidth = 8;
         context.stroke();
-      });
+      }
       context.restore();
       return;
     }
@@ -1162,8 +1225,8 @@ export class ArcheryScene {
 
       if (node.name === 'tip') {
         material.color.set(theme.tip);
-      } else if (node.name === 'wrap') {
-        material.color.set(theme.wrap);
+      } else if (node.name === 'grip') {
+        material.color.set(theme.grip);
       } else if (node.name === 'feather-0') {
         material.color.set(theme.featherA);
       } else if (node.name === 'feather-1') {

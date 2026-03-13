@@ -275,7 +275,7 @@ export class MatchController implements ScreenController {
     this.options.haptics.pulse(12);
     await this.scene.playShot(shotPath.path, shotPath.hitX, shotPath.hitY);
     this.options.audio.playImpact(shotScore.score >= 9 || Boolean(impactResolution.specialLabel));
-    this.options.haptics.pulse(impactResolution.specialLabel ? [18, 28, 18, 28, 22] : shotScore.score >= 9 ? [16, 30, 18] : 12);
+    this.options.haptics.pulse(impactResolution.specialLabel ? [18, 28, 18, 28, 22] : shotScore.isX ? [14, 26, 18, 30, 18] : shotScore.score >= 9 ? [16, 30, 18] : 12);
 
     this.arrowScores.push(shotScore.score);
     this.totalScore += shotScore.score;
@@ -295,7 +295,7 @@ export class MatchController implements ScreenController {
       shotPath.hitY,
       impactResolution.specialLabel,
     );
-    this.impactBriefingUntil = performance.now() + 2000;
+    this.impactBriefingUntil = performance.now() + 1200;
 
     if (shotScore.score === 10 && !this.seenTen) {
       this.seenTen = true;
@@ -453,8 +453,12 @@ function createImpactBriefing(
   hitY: number,
   specialLabel?: string,
 ): MatchImpactBriefing {
+  const tone = getImpactTone(score, isX, specialLabel);
+
   if (score <= 0) {
     return {
+      tone,
+      icon: '🗞',
       tag: '속보',
       headline: `${locationLabel} 판정`,
       detail: '표적 바깥',
@@ -464,14 +468,50 @@ function createImpactBriefing(
     };
   }
 
+  const direction = describeImpactZone(hitX, hitY);
+  const ring = describeRing(score, isX);
+
   return {
-    tag: specialLabel ? '특보' : '속보',
-    headline: specialLabel ? '같은 자리 재명중' : `${locationLabel} 판정`,
-    detail: `${describeImpactZone(hitX, hitY)} ${describeRing(score, isX)}`,
+    tone,
+    icon: getImpactIcon(tone),
+    tag: tone === 'overlap' ? '특보' : tone === 'x' ? 'X 링' : tone === 'ten' ? '10점' : '속보',
+    headline: tone === 'overlap' ? '같은 자리 재명중' : `${locationLabel} ${ring}`,
+    detail: `${direction} · ${ring}`,
     scoreText: isX ? 'X' : `${score}점`,
     isHighlight: score >= 9 || Boolean(specialLabel),
     specialLabel,
   };
+}
+
+function getImpactTone(score: number, isX: boolean, specialLabel?: string): MatchImpactBriefing['tone'] {
+  if (specialLabel) {
+    return 'overlap';
+  }
+  if (score <= 0) {
+    return 'miss';
+  }
+  if (isX) {
+    return 'x';
+  }
+  if (score === 10) {
+    return 'ten';
+  }
+  return 'normal';
+}
+
+function getImpactIcon(tone: MatchImpactBriefing['tone']): string {
+  switch (tone) {
+    case 'overlap':
+      return '🔥';
+    case 'x':
+      return '✨';
+    case 'ten':
+      return '🥇';
+    case 'miss':
+      return '🧭';
+    default:
+      return '🗞';
+  }
 }
 
 function describeRing(score: number, isX: boolean): string {
@@ -496,12 +536,21 @@ function describeRing(score: number, isX: boolean): string {
 function describeImpactZone(hitX: number, hitY: number): string {
   const distance = Math.hypot(hitX, hitY);
   if (distance < 0.08) {
-    return '중앙';
+    return '정중앙';
   }
 
   const horizontal = Math.abs(hitX) > 0.08 ? (hitX > 0 ? '우' : '좌') : '';
   const vertical = Math.abs(hitY) > 0.08 ? (hitY > 0 ? '상' : '하') : '';
-  return `${horizontal}${vertical || '측'}단`;
+  if (horizontal && vertical) {
+    return `${horizontal}${vertical} 방향`;
+  }
+  if (horizontal) {
+    return `${horizontal}측`;
+  }
+  if (vertical) {
+    return `${vertical}측`;
+  }
+  return '중앙선';
 }
 
 function resolveImpactPlacement(

@@ -2,6 +2,8 @@ import type { AimSnapshot } from '../input/types';
 import { element } from './dom';
 
 export interface MatchImpactBriefing {
+  tone: 'miss' | 'normal' | 'ten' | 'x' | 'overlap';
+  icon: string;
   tag: string;
   headline: string;
   detail: string;
@@ -76,21 +78,26 @@ export class MatchHUD {
       <span>🏹 ${state.totalScore}점</span>
       <span>✨ X ${state.xCount}</span>
       <span>🏅 ${state.levelLabel}</span>
-      <span>🌬 ${state.windLabel}</span>
     `;
 
     const tensionLabel = getTensionLabel(state.tension);
     const timingLabel = getTimingLabel(state.releaseTiming);
+    const modeHint = state.drawing ? '누른 채 유지하고 좋은 순간에 놓으세요' : '길게 눌러 스코프 확대 후 놓으세요';
     this.coachCard.innerHTML = `
-      <span class="coach-label">릴리스 타이밍</span>
+      <div class="coach-meta-row">
+        <span class="coach-label">릴리스 타이밍</span>
+        <span class="coach-wind">🌬 ${state.windLabel}</span>
+      </div>
       <strong>${timingLabel}</strong>
-      <small>긴장도 ${tensionLabel} · ${state.drawing ? '누른 채로 미세 조준' : '길게 눌러 확대 조준'}</small>
+      <small>긴장도 ${tensionLabel} · ${modeHint}</small>
       <div class="timing-meter">
         <span class="timing-fill" style="transform: scaleX(${state.releaseTiming.toFixed(3)})"></span>
       </div>
     `;
 
     this.pauseButton.textContent = state.paused ? '▶' : '⏸';
+    this.element.dataset.drawing = state.drawing ? 'true' : 'false';
+    this.element.dataset.impact = state.impactBriefing ? 'true' : 'false';
     this.debug.hidden = !state.debugEnabled;
     this.debug.innerHTML = `
       <strong>debug</strong>
@@ -101,9 +108,10 @@ export class MatchHUD {
 
     if (state.impactBriefing) {
       this.impactFlash.hidden = false;
+      this.impactFlash.dataset.tone = state.impactBriefing.tone;
       this.impactFlash.dataset.highlight = state.impactBriefing.isHighlight ? 'true' : 'false';
       this.impactFlash.innerHTML = `
-        <span>${state.impactBriefing.tag}</span>
+        <span>${state.impactBriefing.icon} ${state.impactBriefing.tag}</span>
         <strong>${state.impactBriefing.headline}</strong>
         <p>${state.impactBriefing.scoreText} · ${state.impactBriefing.detail}</p>
         ${state.impactBriefing.specialLabel ? `<small>${state.impactBriefing.specialLabel}</small>` : ''}

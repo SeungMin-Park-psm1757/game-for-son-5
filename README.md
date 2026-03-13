@@ -1,14 +1,14 @@
 # Family Archery 3D
 
-Family Archery 3D is a mobile-first 3D web archery game with a warm family cheering tone. The first screen is always the Hall of Fame, and the core loop is built around quick sync aiming, short repeatable matches, and family story events that cheer the player on instead of punishing mistakes.
+Family Archery 3D is a mobile-first 3D web archery game with a warm family cheering tone. The first screen is a compact family home stage, and the core loop is built around touch aiming, hold-to-draw timing, short repeatable matches, and family story events that cheer the player on instead of punishing mistakes.
 
 ## Game Overview
-- Hall of Fame home screen with Top 5 score, Top 5 X-count, recent matches, and PB comparison.
-- Full calibration on first setup, then 2 to 3 second quick sync before later matches.
-- Separate sensor, touch, and desktop input adapters.
-- Low-poly 3D range with hold-to-draw, release-to-shoot, wind drift, and ring scoring.
-- Practice 6 arrows and Trial 12 arrows are playable now.
-- Ranking 72 arrows is already scaffolded in config and unlock flow.
+- Family home stage with quick access to `게임 시작`, `명예의 전당`, and `설정`.
+- Quiz gate before each match with chapter-sensitive math, spelling, and dictation challenges.
+- Touch-first hold-to-draw aiming with desktop mouse fallback.
+- Stylized 3D range with scoped aiming, chapter-based wind difficulty, and ring scoring.
+- Practice 6 arrows and chapter record matches for Korea, Japan, and USA.
+- Progression level reduces tremor and updates arrow tip, feather, and bow grip colors.
 - Data-driven family events support toast, overlay dialog, and full story scene delivery.
 
 ## Play Link
@@ -17,8 +17,7 @@ Family Archery 3D is a mobile-first 3D web archery game with a warm family cheer
 - If the page is not live yet, wait for the Pages workflow to finish and make sure GitHub Pages is enabled in the repository settings.
 
 ## Controls
-- Mobile sensor mode: tilt to aim, hold the draw button, release to shoot.
-- Touch fallback: drag on the range to aim, hold the draw button, release to shoot.
+- Mobile: drag on the range to aim, hold the draw button, release to shoot.
 - Desktop: move the mouse to aim, hold the draw button or `Space`, release to shoot.
 - Recenter during a match: HUD `재중앙` button or `R`.
 - Pause during a match: HUD `일시정지`.
@@ -57,6 +56,7 @@ src/
 
 ## Docs
 - `docs/calibration.md`
+- `docs/art-direction.md`
 - `docs/hall-of-fame.md`
 - `docs/story-events.md`
 

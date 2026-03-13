@@ -59,10 +59,30 @@ export function pickQuizType(modeId: ModeId, randomValue = Math.random()): QuizT
     return 'math';
   }
 
-  if (randomValue < 1 / 3) {
+  if (modeId === 'chapterKorea9') {
+    if (randomValue < 0.6) {
+      return 'math';
+    }
+    if (randomValue < 0.85) {
+      return 'spelling';
+    }
+    return 'dictation';
+  }
+
+  if (modeId === 'chapterJapan9') {
+    if (randomValue < 0.25) {
+      return 'math';
+    }
+    if (randomValue < 0.75) {
+      return 'spelling';
+    }
+    return 'dictation';
+  }
+
+  if (randomValue < 0.2) {
     return 'math';
   }
-  if (randomValue < 2 / 3) {
+  if (randomValue < 0.55) {
     return 'spelling';
   }
   return 'dictation';
@@ -78,9 +98,9 @@ export function buildQuizChallengeForType(type: QuizType, modeId: ModeId, random
     case 'math':
       return createMathQuizChallenge(modeId, random);
     case 'spelling':
-      return createSpellingQuizChallenge(random);
+      return createSpellingQuizChallenge(modeId, random);
     case 'dictation':
-      return createDictationQuizChallenge(random);
+      return createDictationQuizChallenge(modeId, random);
   }
 }
 
@@ -142,23 +162,35 @@ export function createMathQuizChallenge(modeId: ModeId, random = Math.random): M
   };
 }
 
-export function createSpellingQuizChallenge(random = Math.random): SpellingQuizChallenge {
-  const question = SPELLING_QUIZZES[Math.floor(random() * SPELLING_QUIZZES.length)] ?? SPELLING_QUIZZES[0];
+export function createSpellingQuizChallenge(modeId: ModeId = 'chapterKorea9', random = Math.random): SpellingQuizChallenge {
+  const pool =
+    modeId === 'chapterUsa9'
+      ? SPELLING_QUIZZES
+      : modeId === 'chapterJapan9'
+        ? SPELLING_QUIZZES.slice(10)
+        : SPELLING_QUIZZES.slice(0, 28);
+  const question = pool[Math.floor(random() * pool.length)] ?? pool[0] ?? SPELLING_QUIZZES[0];
   return {
     type: 'spelling',
     title: '받침 맞춤법 퀴즈',
-    description: '음성을 듣고 빈칸에 들어갈 말을 골라 보세요.',
+    description: modeId === 'chapterUsa9' ? '한 번 더 집중해서 낱말을 골라 보세요.' : '음성을 듣고 빈칸에 들어갈 말을 골라 보세요.',
     question,
     choices: shuffle([...question.choices], random),
   };
 }
 
-export function createDictationQuizChallenge(random = Math.random): DictationQuizChallenge {
-  const targetWord = DICTATION_WORDS[Math.floor(random() * DICTATION_WORDS.length)] ?? DICTATION_WORDS[0];
+export function createDictationQuizChallenge(modeId: ModeId = 'chapterKorea9', random = Math.random): DictationQuizChallenge {
+  const pool =
+    modeId === 'chapterUsa9'
+      ? DICTATION_WORDS.filter((word) => word.length >= 4)
+      : modeId === 'chapterJapan9'
+        ? DICTATION_WORDS.filter((word) => word.length >= 3)
+        : DICTATION_WORDS.filter((word) => word.length <= 4);
+  const targetWord = pool[Math.floor(random() * pool.length)] ?? pool[0] ?? DICTATION_WORDS[0];
   return {
     type: 'dictation',
     title: '받아쓰기 퀴즈',
-    description: '들리는 말을 그대로 적어 보세요.',
+    description: modeId === 'chapterUsa9' ? '빠르게 듣고 정확히 적어 보세요.' : '들리는 말을 그대로 적어 보세요.',
     targetWord,
   };
 }

@@ -7,6 +7,12 @@ describe('quiz challenge generation', () => {
     expect(buildQuizChallengeForType('math', 'practice6').type).toBe('math');
   });
 
+  it('raises quiz difficulty by chapter', () => {
+    expect(pickQuizType('chapterKorea9', 0.2)).toBe('math');
+    expect(pickQuizType('chapterJapan9', 0.4)).toBe('spelling');
+    expect(pickQuizType('chapterUsa9', 0.9)).toBe('dictation');
+  });
+
   it('creates math quizzes with four unique choices including the answer', () => {
     const values = [0.4, 0.1, 0.2, 0.9, 0.7, 0.3, 0.6, 0.8, 0.5, 0.15, 0.95];
     let index = 0;
@@ -30,13 +36,13 @@ describe('quiz challenge generation', () => {
   });
 
   it('creates spelling quizzes from the imported dataset', () => {
-    const quiz = createSpellingQuizChallenge(() => 0);
+    const quiz = createSpellingQuizChallenge('chapterKorea9', () => 0);
     expect(quiz.question.id).toBe('spelling-01');
     expect(quiz.choices).toContain(quiz.question.answer);
   });
 
   it('creates dictation quizzes from the legacy word list', () => {
-    const quiz = createDictationQuizChallenge(() => 0);
+    const quiz = createDictationQuizChallenge('chapterKorea9', () => 0);
     expect(quiz.targetWord).toBe('빛나라');
   });
 });
