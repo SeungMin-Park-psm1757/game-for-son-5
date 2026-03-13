@@ -1,4 +1,4 @@
-import { getPortraitImageUrl } from '../data/portraits';
+import { getPortraitImageUrl, PORTRAITS } from '../data/portraits';
 import { getRivalResultCutin } from '../data/rival';
 import { getModeConfig } from '../data/modes';
 import type { MatchSummary } from '../game/types';
@@ -93,13 +93,15 @@ function createRivalResultCutin(summary: MatchSummary): HTMLElement | null {
   }
 
   const cutin = getRivalResultCutin(summary.rivalId, summary.didBeatRival, summary.record.timestamp);
+  const portraitInfo = PORTRAITS[cutin.profile.portraitKey];
+  const portraitClass = portraitInfo.renderMode === 'pixel' ? 'is-pixel' : '';
   const card = element('section', 'panel rival-result-cutin');
   card.dataset.tone = cutin.tone;
   card.style.setProperty('--rival-accent', cutin.profile.accent);
   card.style.setProperty('--rival-soft', cutin.profile.accentSoft);
   card.innerHTML = `
     <div class="rival-result-photo">
-      <img class="is-pixel" src="${getPortraitImageUrl(cutin.profile.portraitKey)}" alt="${cutin.profile.name}" />
+      <img class="${portraitClass}" src="${getPortraitImageUrl(cutin.profile.portraitKey)}" alt="${cutin.profile.name}" />
     </div>
     <div class="rival-result-copy">
       <span class="eyebrow">Rival Cut-in</span>

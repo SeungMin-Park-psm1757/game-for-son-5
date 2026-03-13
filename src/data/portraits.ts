@@ -65,7 +65,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#0f766e',
     accentSoft: '#a7f3d0',
     assetPath: 'assets/rivals/siwoo.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
   rival_siyeon: {
     key: 'rival_siyeon',
@@ -74,7 +74,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#2563eb',
     accentSoft: '#bfdbfe',
     assetPath: 'assets/rivals/siyeon.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
   rival_jihwan: {
     key: 'rival_jihwan',
@@ -83,7 +83,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#7c3aed',
     accentSoft: '#ddd6fe',
     assetPath: 'assets/rivals/jihwan.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
   rival_junhong: {
     key: 'rival_junhong',
@@ -92,7 +92,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#b45309',
     accentSoft: '#fde68a',
     assetPath: 'assets/rivals/junhong.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
   rival_carbot: {
     key: 'rival_carbot',
@@ -101,7 +101,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#374151',
     accentSoft: '#cbd5e1',
     assetPath: 'assets/rivals/carbot.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
   rival_pororo: {
     key: 'rival_pororo',
@@ -110,7 +110,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#1d4ed8',
     accentSoft: '#bfdbfe',
     assetPath: 'assets/rivals/pororo.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
   rival_loopy: {
     key: 'rival_loopy',
@@ -119,7 +119,7 @@ export const PORTRAITS: Record<PortraitKey, PortraitDefinition> = {
     accent: '#db2777',
     accentSoft: '#fbcfe8',
     assetPath: 'assets/rivals/loopy.svg',
-    renderMode: 'pixel',
+    renderMode: 'photo',
   },
 };
 
