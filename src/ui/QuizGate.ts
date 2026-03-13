@@ -197,6 +197,7 @@ function renderSpellingChallenge(
   promptCard.innerHTML = `<strong>빈칸 맞춤법</strong><p>${challenge.question.promptText}</p>`;
 
   const choiceGrid = element('div', 'quiz-choices quiz-choice-grid');
+  let usedSecondChance = false;
   const buttons = challenge.choices.map((choice) => {
     const button = element('button', 'choice-btn');
     button.type = 'button';
@@ -208,21 +209,40 @@ function renderSpellingChallenge(
       }
 
       const isCorrect = choice === challenge.question.answer;
-      buttons.forEach((item) => {
-        item.disabled = true;
-        if (item.dataset.choice === challenge.question.answer) {
-          item.dataset.state = 'correct';
-        }
-      });
-
       if (isCorrect) {
+        buttons.forEach((item) => {
+          item.disabled = true;
+          if (item.dataset.choice === challenge.question.answer) {
+            item.dataset.state = 'correct';
+          }
+        });
         setFeedback(`정답! "${challenge.question.answer}"가 맞아요. 이제 경기장으로 들어갈 수 있어요.`, 'success');
         window.setTimeout(onSuccess, 900);
         return;
       }
 
       button.dataset.state = 'wrong';
-      setFeedback(`정답은 "${challenge.question.answer}"예요. 다시 한 문제만 더 풀어볼까요?`, 'error');
+      if (!usedSecondChance) {
+        usedSecondChance = true;
+        button.disabled = true;
+        const removable = buttons.filter((item) => item !== button && !item.disabled && item.dataset.choice !== challenge.question.answer);
+        const eliminated = removable[Math.floor(Math.random() * removable.length)];
+        if (eliminated) {
+          eliminated.disabled = true;
+          eliminated.dataset.state = 'eliminated';
+          eliminated.textContent = 'X';
+        }
+        setFeedback('아쉬워요. 틀린 보기 하나를 더 지웠어요. 한 번만 더 골라보세요.', 'hint');
+        return;
+      }
+
+      buttons.forEach((item) => {
+        item.disabled = true;
+        if (item.dataset.choice === challenge.question.answer) {
+          item.dataset.state = 'correct';
+        }
+      });
+      setFeedback(`이번 문제의 정답은 "${challenge.question.answer}"예요. 같은 유형으로 다시 한 번 풀어볼까요?`, 'error');
       showRetryActions();
     });
     choiceGrid.append(button);
@@ -263,6 +283,7 @@ function renderDictationChallenge(
   input.autocomplete = 'off';
   const submit = element('button', 'primary-button', '확인');
   inputRow.append(input, submit);
+  let usedSecondChance = false;
 
   const check = () => {
     if (submit.disabled) {
@@ -270,18 +291,29 @@ function renderDictationChallenge(
     }
 
     const value = input.value.trim();
-    input.disabled = true;
-    submit.disabled = true;
 
     if (value === challenge.targetWord) {
+      input.disabled = true;
+      submit.disabled = true;
       input.dataset.state = 'correct';
       setFeedback('정답! 받아쓰기를 통과했어요. 이제 바로 경기할 수 있어요.', 'success');
       window.setTimeout(onSuccess, 900);
       return;
     }
 
+    if (!usedSecondChance) {
+      usedSecondChance = true;
+      input.dataset.state = 'wrong';
+      input.value = '';
+      input.focus();
+      setFeedback(`한 번 더 해볼 수 있어요. 힌트: 글자 수는 ${challenge.targetWord.length}자예요.`, 'hint');
+      return;
+    }
+
+    input.disabled = true;
+    submit.disabled = true;
     input.dataset.state = 'wrong';
-    setFeedback(`아쉬워요. 정답은 "${challenge.targetWord}"예요. 다시 한 번 도전해 보세요.`, 'error');
+    setFeedback(`이번 문제의 정답은 "${challenge.targetWord}"예요. 다시 한 번 도전해 보세요.`, 'error');
     showRetryActions();
   };
 

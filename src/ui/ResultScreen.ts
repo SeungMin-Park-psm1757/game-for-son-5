@@ -32,10 +32,14 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
 
   const stats = element('div', 'home-grid');
   const overview = element('div', 'panel');
+  const rivalSummary = summary.rivalName
+    ? `<div class="comparison-card"><span>라이벌</span><strong>${summary.rivalName} ${summary.rivalTotalScore}점</strong><small>${summary.didBeatRival ? '정우 승리' : '라이벌 우세'}</small></div>`
+    : '';
   overview.innerHTML = `
     <h2 class="section-title">요약</h2>
     <div class="comparison-grid">
       <div class="comparison-card"><span>챕터</span><strong>${mode.locationLabel}</strong></div>
+      ${rivalSummary}
       <div class="comparison-card"><span>안정도</span><strong>${formatPercent(summary.record.averageStability)}</strong></div>
       <div class="comparison-card"><span>릴리스</span><strong>${formatPercent(summary.record.averageReleaseQuality)}</strong></div>
       <div class="comparison-card"><span>명예의 전당</span><strong>#${summary.hallOfFameRank}</strong></div>
@@ -58,6 +62,7 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
   status.innerHTML = `
     <h2 class="section-title">기록 반영</h2>
     <p>${summary.isPersonalBest ? '개인 최고 기록이 갱신되었습니다.' : '이번 기록도 명예의 전당에 저장되었습니다.'}</p>
+    <p>${summary.rivalName ? `${summary.rivalName}과의 대결 ${summary.didBeatRival ? '승리' : '재도전'}입니다.` : '이번 경기는 개인 기록전으로 저장되었습니다.'}</p>
     <p>${summary.unlockedMode ? `${getModeConfig(summary.unlockedMode).title}가 새로 열렸습니다.` : '다음 경기에서 더 높은 기록에 도전해보세요.'}</p>
     <p>바람 요약 · ${summary.record.windSummary}</p>
   `;

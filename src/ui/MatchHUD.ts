@@ -17,6 +17,8 @@ export interface MatchHudState {
   arrowIndex: number;
   arrowCount: number;
   totalScore: number;
+  rivalName: string | null;
+  rivalScore: number;
   xCount: number;
   windLabel: string;
   levelLabel: string;
@@ -26,6 +28,7 @@ export interface MatchHudState {
   tension: number;
   releaseTiming: number;
   drawing: boolean;
+  turnLabel: string;
   impactBriefing: MatchImpactBriefing | null;
 }
 
@@ -83,13 +86,15 @@ export class MatchHUD {
     const tensionLabel = getTensionLabel(state.tension);
     const timingLabel = getTimingLabel(state.releaseTiming);
     const modeHint = state.drawing ? '누른 채 유지하고 좋은 순간에 놓으세요' : '길게 눌러 스코프 확대 후 놓으세요';
+    const scoreLine = state.rivalName ? `${state.rivalName} ${state.rivalScore}점 · 정우 ${state.totalScore}점` : `정우 ${state.totalScore}점`;
     this.coachCard.innerHTML = `
       <div class="coach-meta-row">
         <span class="coach-label">릴리스 타이밍</span>
-        <span class="coach-wind">🌬 ${state.windLabel}</span>
+        <span class="coach-wind">${state.turnLabel}</span>
       </div>
       <strong>${timingLabel}</strong>
-      <small>긴장도 ${tensionLabel} · ${modeHint}</small>
+      <small>${scoreLine}</small>
+      <small>긴장도 ${tensionLabel} · 바람 ${state.windLabel} · ${modeHint}</small>
       <div class="timing-meter">
         <span class="timing-fill" style="transform: scaleX(${state.releaseTiming.toFixed(3)})"></span>
       </div>

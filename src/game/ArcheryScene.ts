@@ -134,7 +134,13 @@ export class ArcheryScene {
   private readonly bowHand = this.createBowHand();
   private readonly drawHand = this.createDrawHand();
   private readonly archerSilhouette = this.createArcherSilhouette();
+  private readonly rivalGroup = new Group();
+  private readonly rivalBowHand = this.createBowHand();
+  private readonly rivalDrawHand = this.createDrawHand();
+  private readonly rivalSilhouette = this.createArcherSilhouette();
   private currentArrowTheme: ArrowTheme = DEFAULT_ARROW_THEME;
+  private readonly rivalPreviewArrow = this.createArrow(false);
+  private readonly rivalStringLine = this.createString();
   private readonly previewArrow = this.createArrow(false);
   private readonly stringLine = this.createString();
   private readonly targetPlane = new Mesh(
@@ -147,6 +153,8 @@ export class ArcheryScene {
   private activeShot: ActiveShot | null = null;
   private currentFov = 64;
   private releaseKick = 0;
+  private rivalDraw = 0;
+  private rivalVisible = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -173,6 +181,7 @@ export class ArcheryScene {
   public frame(snapshot: AimSnapshot, drawRatio: number, scopeRatio: number): void {
     this.updateCamera(snapshot, scopeRatio);
     this.updateBow(drawRatio);
+    this.updateRivalRig();
     this.updateShot();
     this.updateAmbientMotion();
     this.renderer.render(this.scene, this.camera);
@@ -200,9 +209,43 @@ export class ArcheryScene {
     });
   }
 
+  public async playRivalShot(hitX: number, hitY: number): Promise<void> {
+    this.rivalVisible = true;
+    await animateValue(this.reduceMotion ? 140 : 320, (progress) => {
+      this.rivalDraw = progress;
+    });
+
+    const path = this.createRivalShotPath(hitX, hitY);
+    const arrow = this.createArrow(true);
+    this.scene.add(arrow);
+    const finalDirection = path[path.length - 1].clone().sub(path[Math.max(path.length - 2, 0)]).normalize();
+
+    await new Promise<void>((resolve) => {
+      this.activeShot = {
+        path,
+        progress: 0,
+        arrow,
+        hitX,
+        hitY,
+        finalDirection,
+        resolve: () => {
+          this.pinArrow(arrow, hitX, hitY, finalDirection);
+          resolve();
+        },
+      };
+    });
+
+    await animateValue(this.reduceMotion ? 120 : 180, (progress) => {
+      this.rivalDraw = 1 - progress;
+    });
+    this.rivalDraw = 0;
+    this.rivalVisible = false;
+  }
+
   public setArrowTheme(theme: ArrowTheme): void {
     this.currentArrowTheme = theme;
     this.applyArrowTheme(this.bowGroup, theme);
+    this.applyArrowTheme(this.rivalGroup, theme);
   }
 
   public destroy(): void {
@@ -296,6 +339,7 @@ export class ArcheryScene {
     this.scene.add(this.camera);
 
     const bowAssembly = this.createBowAssembly();
+    const rivalBowAssembly = this.createBowAssembly();
 
     this.previewArrow.position.set(0.03, 0.01, -0.93);
     this.bowGroup.position.set(0.44, -0.18, -0.08);
@@ -307,6 +351,21 @@ export class ArcheryScene {
       this.bowHand,
       this.drawHand,
     );
+
+    this.rivalPreviewArrow.position.set(0.03, 0.01, -0.93);
+    this.rivalGroup.position.set(-1.54, 1.16, 4.15);
+    this.rivalGroup.scale.set(-0.76, 0.76, 0.76);
+    this.rivalGroup.rotation.y = -0.22;
+    this.rivalGroup.visible = false;
+    this.rivalGroup.add(
+      this.rivalSilhouette,
+      rivalBowAssembly,
+      this.rivalStringLine,
+      this.rivalPreviewArrow,
+      this.rivalBowHand,
+      this.rivalDrawHand,
+    );
+    this.scene.add(this.rivalGroup);
   }
 
   private createBowAssembly(): Group {
@@ -622,6 +681,12 @@ export class ArcheryScene {
   }
 
   private updateBow(drawRatio: number): void {
+    this.bowGroup.visible = !this.rivalVisible;
+    if (this.rivalVisible) {
+      this.previewArrow.visible = false;
+      return;
+    }
+
     const clamped = Math.max(0, Math.min(drawRatio, 1));
     this.releaseKick += (0 - this.releaseKick) * 0.22;
     const releaseOffset = this.releaseKick * 0.08;
@@ -641,6 +706,28 @@ export class ArcheryScene {
     this.drawHand.rotation.x = 0.08 + clamped * 0.05;
     this.bowGroup.rotation.x = releaseOffset * 0.08;
     this.bowGroup.rotation.y = -0.08 - clamped * 0.04 - releaseOffset * 0.12;
+  }
+
+  private updateRivalRig(): void {
+    this.rivalGroup.visible = this.rivalVisible;
+    if (!this.rivalVisible) {
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(this.rivalDraw, 1));
+    this.rivalPreviewArrow.visible = !this.activeShot;
+    this.rivalPreviewArrow.position.z = -0.92 + clamped * 0.24;
+    this.rivalPreviewArrow.position.x = 0.03 - clamped * 0.036;
+    this.rivalPreviewArrow.position.y = 0.01 + clamped * 0.004;
+    this.rivalDrawHand.position.set(-0.03 - clamped * 0.14, -0.01, -0.9 + clamped * 0.05);
+    this.rivalDrawHand.rotation.y = -0.32 - clamped * 0.24;
+    this.rivalDrawHand.rotation.z = -0.05 + clamped * 0.06;
+    this.rivalDrawHand.rotation.x = 0.06 + clamped * 0.04;
+    this.rivalStringLine.geometry.setFromPoints([
+      new Vector3(0.15, 0.72, -1.13),
+      new Vector3(-0.01 - clamped * 0.13, 0.005, -0.9 + clamped * 0.05),
+      new Vector3(0.15, -0.72, -1.13),
+    ]);
   }
 
   private updateShot(): void {
@@ -712,6 +799,7 @@ export class ArcheryScene {
 
   private createArrow(withScale: boolean): Group {
     const group = new Group();
+    const theme = this.currentArrowTheme ?? DEFAULT_ARROW_THEME;
 
     const shaft = new Mesh(
       new CylinderGeometry(0.008, 0.01, ARROW_SHAFT_LENGTH, 16),
@@ -722,7 +810,7 @@ export class ArcheryScene {
 
     const head = new Mesh(
       new ConeGeometry(0.018, ARROW_HEAD_LENGTH, 12),
-      new MeshStandardMaterial({ color: this.currentArrowTheme.tip, roughness: 0.28, metalness: 0.28 }),
+      new MeshStandardMaterial({ color: theme.tip, roughness: 0.28, metalness: 0.28 }),
     );
     head.name = 'tip';
     head.rotation.x = -Math.PI / 2;
@@ -750,7 +838,7 @@ export class ArcheryScene {
     collar.position.set(0, 0, ARROW_SHAFT_LENGTH * 0.28);
     collar.rotation.y = Math.PI / 2;
 
-    const featherPalette = [this.currentArrowTheme.featherA, this.currentArrowTheme.featherB, this.currentArrowTheme.featherC];
+    const featherPalette = [theme.featherA, theme.featherB, theme.featherC];
     for (let index = 0; index < 3; index += 1) {
       const feather = new Mesh(
         new PlaneGeometry(0.17, 0.052),
@@ -769,6 +857,14 @@ export class ArcheryScene {
     }
 
     return group;
+  }
+
+  private createRivalShotPath(hitX: number, hitY: number): Vector3[] {
+    const start = new Vector3(-1.74, 1.78, 3.68);
+    const mid = new Vector3(-1.08, 1.92, -8.2);
+    const rise = new Vector3(hitX - 0.36, TARGET_CENTER_Y + hitY + 0.28, -TARGET_DISTANCE * 0.56);
+    const end = new Vector3(hitX, TARGET_CENTER_Y + hitY, -TARGET_DISTANCE);
+    return new CatmullRomCurve3([start, mid, rise, end], false, 'catmullrom', 0.18).getPoints(this.reduceMotion ? 26 : 34);
   }
 
   private createBowHand(): Group {
@@ -1244,4 +1340,27 @@ export class ArcheryScene {
     });
     return texture;
   }
+}
+
+function animateValue(durationMs: number, onProgress: (progress: number) => void): Promise<void> {
+  if (durationMs <= 0) {
+    onProgress(1);
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const startedAt = performance.now();
+
+    const step = () => {
+      const progress = Math.min((performance.now() - startedAt) / durationMs, 1);
+      onProgress(progress);
+      if (progress >= 1) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(step);
+    };
+
+    step();
+  });
 }

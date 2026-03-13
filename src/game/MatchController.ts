@@ -1,5 +1,6 @@
 import { getModeConfig, getResultBand, getUnlockedNextMode } from '../data/modes';
 import { getScoreRank, isPersonalBest } from '../data/records';
+import { createRivalShot, getRivalProfile } from '../data/rival';
 import { DesktopAimInput } from '../input/DesktopAimInput';
 import { TouchAimInput } from '../input/TouchAimInput';
 import type { AimInputAdapter, AimSnapshot } from '../input/types';
@@ -56,6 +57,7 @@ export class MatchController implements ScreenController {
   private xCount = 0;
   private currentWind = 0;
   private readonly arrowScores: number[] = [];
+  private readonly rivalArrowScores: number[] = [];
   private readonly stabilitySamples: number[] = [];
   private readonly releaseSamples: number[] = [];
   private readonly hitHistory: Array<{ x: number; y: number }> = [];
@@ -68,9 +70,13 @@ export class MatchController implements ScreenController {
   private impactBriefing: MatchImpactBriefing | null = null;
   private impactBriefingUntil = 0;
   private progress = getPlayerProgress([]);
+  private readonly rival;
+  private rivalTotalScore = 0;
+  private rivalTurn = false;
 
   constructor(private readonly options: MatchControllerOptions) {
     this.mode = getModeConfig(this.options.modeId);
+    this.rival = getRivalProfile(this.options.modeId);
     this.windSystem = new WindSystem(this.mode.windDrift, this.mode.windClamp);
     this.currentWind = this.windSystem.next(0);
     this.progress = getPlayerProgress(this.options.records);
@@ -104,6 +110,10 @@ export class MatchController implements ScreenController {
 
     void this.initializeAdapter();
     this.loop();
+    if (this.rival) {
+      this.animating = true;
+      void this.runRivalTurn();
+    }
   }
 
   public destroy(): void {
@@ -221,6 +231,8 @@ export class MatchController implements ScreenController {
       arrowIndex: this.arrowIndex,
       arrowCount: this.mode.arrowCount,
       totalScore: this.totalScore,
+      rivalName: this.rival?.name ?? null,
+      rivalScore: this.rivalTotalScore,
       xCount: this.xCount,
       windLabel: this.windSystem.describe(this.currentWind),
       levelLabel: `Lv.${this.progress.level}`,
@@ -230,6 +242,7 @@ export class MatchController implements ScreenController {
       tension: frame.tension,
       releaseTiming: frame.releaseTiming,
       drawing: this.drawing,
+      turnLabel: this.rivalTurn ? `${this.rival?.name ?? '라이벌'} 차례` : '정우 차례',
       impactBriefing: this.impactBriefing,
     });
 
@@ -318,11 +331,56 @@ export class MatchController implements ScreenController {
     this.currentWind = this.windSystem.next(this.arrowIndex);
     this.arrowPatternSeed = Math.random() * Math.PI * 2;
     this.animating = false;
+    if (this.rival) {
+      this.animating = true;
+      void this.runRivalTurn();
+    }
   }
 
   private cancelDraw(): void {
     this.drawing = false;
     this.drawStabilityWindow = [];
+  }
+
+  private async runRivalTurn(): Promise<void> {
+    if (!this.rival || this.rivalArrowScores.length >= this.mode.arrowCount) {
+      this.rivalTurn = false;
+      this.animating = false;
+      return;
+    }
+
+    const shot = createRivalShot(this.mode.id, this.rivalArrowScores.length);
+    if (!shot) {
+      this.rivalTurn = false;
+      this.animating = false;
+      return;
+    }
+
+    this.rivalTurn = true;
+    this.impactBriefing = {
+      tone: 'normal',
+      icon: '🏁',
+      tag: '라이벌',
+      headline: `${this.rival.name} 선공`,
+      detail: `${this.rival.title}이 먼저 시위를 당깁니다`,
+      scoreText: 'READY',
+      isHighlight: false,
+    };
+    this.impactBriefingUntil = performance.now() + 650;
+    await this.scene.playRivalShot(shot.hitX, shot.hitY);
+
+    this.rivalArrowScores.push(shot.score);
+    this.rivalTotalScore += shot.score;
+    this.impactBriefing = createImpactBriefing(
+      this.rival.name,
+      shot.score,
+      shot.isX,
+      shot.hitX,
+      shot.hitY,
+    );
+    this.impactBriefingUntil = performance.now() + 1100;
+    this.rivalTurn = false;
+    this.animating = false;
   }
 
   private finishMatch(): void {
@@ -348,6 +406,10 @@ export class MatchController implements ScreenController {
       hallOfFameRank: getScoreRank(record, this.options.records),
       unlockedMode: getUnlockedNextMode(this.mode.id, this.totalScore),
       resultBand,
+      rivalName: this.rival?.name ?? null,
+      rivalTotalScore: this.rivalTotalScore,
+      rivalArrowScores: [...this.rivalArrowScores],
+      didBeatRival: this.rival ? this.totalScore >= this.rivalTotalScore : null,
     };
 
     this.animating = false;

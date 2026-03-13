@@ -22,4 +22,8 @@ export interface MatchSummary {
   hallOfFameRank: number;
   unlockedMode: ModeId | null;
   resultBand: ResultBand;
+  rivalName: string | null;
+  rivalTotalScore: number;
+  rivalArrowScores: number[];
+  didBeatRival: boolean | null;
 }
