@@ -42,7 +42,7 @@ describe('home screen interactions', () => {
     const startSheet = screen.element.querySelector<HTMLElement>('.start-sheet-scrim');
     const supportButtons = [...screen.element.querySelectorAll<HTMLButtonElement>('.family-support-card')];
 
-    expect(screen.element.textContent).toContain('정우의 국궁 올림픽');
+    expect(screen.element.textContent?.replace(/\s+/g, '')).toContain('정우의국궁올림픽');
     expect(screen.element.getAttribute('data-panel-open')).toBe('false');
 
     supportButtons[1].click();

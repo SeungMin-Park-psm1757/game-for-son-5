@@ -1,3 +1,5 @@
+import { getPortraitImageUrl } from '../data/portraits';
+import { getRivalResultCutin } from '../data/rival';
 import { getModeConfig } from '../data/modes';
 import type { MatchSummary } from '../game/types';
 import { element, formatDate, formatPercent, type ScreenController } from './dom';
@@ -29,6 +31,8 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
         : summary.resultBand === 'bronze'
           ? '동빛 엔딩'
           : '격려 엔딩';
+
+  const rivalCutin = summary.rivalId ? createRivalResultCutin(summary) : null;
 
   const stats = element('div', 'home-grid');
   const overview = element('div', 'panel');
@@ -75,6 +79,35 @@ export function createResultScreen(options: ResultScreenOptions): ScreenControll
   home.addEventListener('click', options.onHome);
   actions.append(rematch, home);
 
-  screen.append(hero, band, stats, actions);
+  if (rivalCutin) {
+    screen.append(hero, band, rivalCutin, stats, actions);
+  } else {
+    screen.append(hero, band, stats, actions);
+  }
   return { element: screen };
+}
+
+function createRivalResultCutin(summary: MatchSummary): HTMLElement | null {
+  if (!summary.rivalId) {
+    return null;
+  }
+
+  const cutin = getRivalResultCutin(summary.rivalId, summary.didBeatRival, summary.record.timestamp);
+  const card = element('section', 'panel rival-result-cutin');
+  card.dataset.tone = cutin.tone;
+  card.style.setProperty('--rival-accent', cutin.profile.accent);
+  card.style.setProperty('--rival-soft', cutin.profile.accentSoft);
+  card.innerHTML = `
+    <div class="rival-result-photo">
+      <img class="is-pixel" src="${getPortraitImageUrl(cutin.profile.portraitKey)}" alt="${cutin.profile.name}" />
+    </div>
+    <div class="rival-result-copy">
+      <span class="eyebrow">Rival Cut-in</span>
+      <strong>${cutin.headline}</strong>
+      <p>${cutin.body}</p>
+      <small>${cutin.profile.name} · ${cutin.profile.title}</small>
+    </div>
+    <span class="rival-result-stamp">${cutin.stamp}</span>
+  `;
+  return card;
 }

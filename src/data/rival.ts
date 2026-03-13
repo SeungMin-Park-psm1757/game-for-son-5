@@ -20,6 +20,14 @@ export interface RivalShot {
   hitY: number;
 }
 
+export interface RivalResultCutin {
+  profile: RivalProfile;
+  tone: 'win' | 'lose';
+  stamp: string;
+  headline: string;
+  body: string;
+}
+
 const RIVAL_ROSTER: Record<RivalId, RivalProfile> = {
   siwoo: {
     id: 'siwoo',
@@ -183,6 +191,85 @@ const RIVAL_DIALOGUES: Record<RivalId, (modeId: Exclude<ModeId, 'practice6'>) =>
   },
 };
 
+const RIVAL_RESULT_LINES: Record<
+  RivalId,
+  {
+    win: Array<{ stamp: string; headline: string; body: string }>;
+    lose: Array<{ stamp: string; headline: string; body: string }>;
+  }
+> = {
+  siwoo: {
+    win: [
+      { stamp: '정우 승', headline: '시우가 웃으며 고개를 끄덕였다.', body: '오늘은 네 템포가 더 좋았어. 다음엔 내가 먼저 몰아붙일게.' },
+      { stamp: '역전 완료', headline: '시우가 장난스럽게 엄지를 들었다.', body: '축구였으면 추가시간인데, 활에선 네가 먼저 끝냈네.' },
+    ],
+    lose: [
+      { stamp: '재도전', headline: '시우가 먼저 점수판을 흔들었다.', body: '오늘은 스피드 싸움에서 내가 한 발 빨랐어. 다음 판도 하자.' },
+      { stamp: '선공 성공', headline: '시우가 밝게 웃었다.', body: '리듬은 좋았는데 이번엔 내가 더 먼저 잡았어.' },
+    ],
+  },
+  siyeon: {
+    win: [
+      { stamp: '침착 우위', headline: '시연이 짧게 한마디 남겼다.', body: '조용했지만 강했네. 오늘 집중은 네 쪽이 더 날카로웠어.' },
+      { stamp: '정우 우세', headline: '시연이 담담하게 인정했다.', body: '좋은 발이 많았어. 다음엔 내가 더 먼저 흔들어볼게.' },
+    ],
+    lose: [
+      { stamp: '시연 우위', headline: '시연이 차분하게 활을 내렸다.', body: '오늘은 흔들림을 더 잘 숨긴 쪽이 이겼어.' },
+      { stamp: '다음 판', headline: '시연이 눈빛만으로 승부를 마무리했다.', body: '네 감도 좋았어. 다음엔 더 팽팽할 거야.' },
+    ],
+  },
+  jihwan: {
+    win: [
+      { stamp: '감각 승리', headline: '지환이 메모를 멈추고 웃었다.', body: '계산보다 감각이 앞선 날도 있네. 오늘은 네가 맞았어.' },
+      { stamp: '정우 분석 완료', headline: '지환이 조용히 고개를 끄덕였다.', body: '예상보다 좋은 릴리스였어. 다음엔 내가 다시 계산해볼게.' },
+    ],
+    lose: [
+      { stamp: '지환 계산 적중', headline: '지환이 기록표를 접으며 말했다.', body: '오늘은 변수까지 계산 안에 있었어. 그래도 차이는 아주 작았어.' },
+      { stamp: '데이터 우세', headline: '지환이 담백하게 승부를 정리했다.', body: '네 감각도 좋았지만 이번 판은 계산이 조금 더 앞섰어.' },
+    ],
+  },
+  junhong: {
+    win: [
+      { stamp: '정우 집중 승', headline: '준홍이 낮게 웃으며 박수쳤다.', body: '좋았다. 조용한 쪽이 누군지 끝까지 잘 보여줬네.' },
+      { stamp: '침착함 증명', headline: '준홍이 짧게 인정했다.', body: '오늘은 네가 더 끝까지 흔들리지 않았어.' },
+    ],
+    lose: [
+      { stamp: '준홍 우세', headline: '준홍이 숨을 고른 뒤 한마디했다.', body: '결국 마지막까지 버틴 쪽이 이겼네. 다음엔 더 팽팽하게 가자.' },
+      { stamp: '차분한 승부', headline: '준홍이 조용히 활을 내려놨다.', body: '네 페이스도 좋았어. 하지만 오늘은 내가 조금 더 차분했어.' },
+    ],
+  },
+  carbot: {
+    win: [
+      { stamp: '휴먼 센스', headline: '카봇이 결과를 다시 계산했다.', body: '분석 결과 수정. 오늘 승인은 정우의 감각 우세.' },
+      { stamp: '프로토콜 갱신', headline: '카봇이 불빛을 한 번 깜빡였다.', body: '예측 밖의 좋은 릴리스. 다음 경기부터 새로운 변수로 등록한다.' },
+    ],
+    lose: [
+      { stamp: '정밀 우세', headline: '카봇이 차분하게 결과를 출력했다.', body: '계산값 일치. 그러나 정우도 매우 경쟁적이었다.' },
+      { stamp: '재시뮬레이션', headline: '카봇이 진지하게 활을 정리했다.', body: '이번 판 승자는 카봇. 다음 대결에선 더 어려운 조건도 가능.' },
+    ],
+  },
+  pororo: {
+    win: [
+      { stamp: '신나는 패배', headline: '뽀로로가 환하게 웃었다.', body: '와, 정우 진짜 멋졌어! 다음엔 내가 더 신나게 따라갈게.' },
+      { stamp: '다음 모험', headline: '뽀로로가 모자를 톡 건드렸다.', body: '오늘은 네가 가운데를 더 많이 찾았네. 그래도 다음 판도 완전 재밌겠다!' },
+    ],
+    lose: [
+      { stamp: '모험 성공', headline: '뽀로로가 두 팔을 번쩍 들었다.', body: '해냈다! 이번엔 내가 먼저 가운데를 차지했어!' },
+      { stamp: '신나는 승리', headline: '뽀로로가 통통 뛰듯 기뻐했다.', body: '정우도 정말 잘했어. 그래서 더 재밌는 승부였어!' },
+    ],
+  },
+  loopy: {
+    win: [
+      { stamp: '부드러운 인정', headline: '루피가 살짝 웃으며 말했다.', body: '오늘은 네 자세가 더 예쁘고 단단했어. 정말 잘 쐈다.' },
+      { stamp: '정우 우세', headline: '루피가 차분히 박수쳤다.', body: '보기 좋은데 점수까지 좋았어. 그거 쉽지 않은데.' },
+    ],
+    lose: [
+      { stamp: '루피 우세', headline: '루피가 조용히 활시위를 놓았다.', body: '오늘은 부드럽게, 하지만 정확하게 끝냈어. 다음엔 또 붙자.' },
+      { stamp: '예쁜 한 수', headline: '루피가 미소를 감추지 못했다.', body: '네가 끝까지 따라와서 더 긴장됐어. 그래서 더 기억나는 승부야.' },
+    ],
+  },
+};
+
 export function parseRivalId(value: string | null): RivalId | null {
   if (!value) {
     return null;
@@ -219,6 +306,21 @@ export function createRivalIntroEvent(modeId: Exclude<ModeId, 'practice6'>, riva
     priority: 1,
     trigger: { type: 'first_launch', mode: modeId },
     lines: RIVAL_DIALOGUES[rivalId](modeId),
+  };
+}
+
+export function getRivalResultCutin(rivalId: RivalId, didBeatRival: boolean | null, seed: number): RivalResultCutin {
+  const profile = RIVAL_ROSTER[rivalId];
+  const tone = didBeatRival ? 'win' : 'lose';
+  const lines = RIVAL_RESULT_LINES[rivalId][tone];
+  const selected = lines[Math.abs(seed) % lines.length] ?? lines[0];
+
+  return {
+    profile,
+    tone,
+    stamp: selected.stamp,
+    headline: selected.headline,
+    body: selected.body,
   };
 }
 

@@ -77,7 +77,11 @@ function createStage(options: HomeOptions): {
   `;
 
   const header = element('div', 'home-stage-header');
-  header.innerHTML = '<h1 class="home-stage-title">정우의 국궁 올림픽</h1>';
+  const compactTitle =
+    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 340px)').matches;
+  header.innerHTML = compactTitle
+    ? '<h1 class="home-stage-title"><span>정우의</span><span>국궁</span><span>올림픽</span></h1>'
+    : '<h1 class="home-stage-title"><span>정우의 국궁</span><span>올림픽</span></h1>';
 
   const main = element('div', 'home-stage-main');
   main.append(

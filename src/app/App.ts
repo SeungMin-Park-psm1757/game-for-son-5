@@ -8,6 +8,7 @@ import { createHomeHallOfFame } from '../ui/HomeHallOfFame';
 import { showResetConfirmModal } from '../ui/ResetConfirmModal';
 import { createResultScreen } from '../ui/ResultScreen';
 import { createSettingsScreen } from '../ui/SettingsScreen';
+import { showDailyGoalRewardOverlay } from '../ui/DailyGoalRewardOverlay';
 import { presentQuizGate } from '../ui/QuizGate';
 import { clearNode, type ScreenController } from '../ui/dom';
 import { createHomeSupportSession } from '../data/homeSupport';
@@ -215,29 +216,9 @@ export class App {
 
     const newlyCompletedGoals = getNewlyCompletedGoalIds(previousRecords, nextRecords);
     if (newlyCompletedGoals.length > 0) {
-      await this.overlay.present({
-        id: `daily-goal-${Date.now()}`,
-        delivery: 'overlay',
-        priority: 1,
-        trigger: { type: 'first_launch' },
-        lines: [
-          {
-            speaker: '세연',
-            portraitKey: 'char_seyeon',
-            text:
-              newlyCompletedGoals.length > 1
-                ? `오빠, 오늘 목표를 ${newlyCompletedGoals.length}개나 끝냈어! 완전 기세 좋다!`
-                : '오빠, 오늘 목표 하나 달성! 이 흐름 너무 좋다!',
-          },
-          {
-            speaker: '엄마',
-            portraitKey: 'char_mom',
-            text:
-              newlyCompletedGoals.length > 1
-                ? newlyCompletedGoals.map((goalId) => getGoalTitle(goalId)).join(' · ')
-                : `${getGoalTitle(newlyCompletedGoals[0]!)} 달성. 지금 리듬 그대로 이어가자.`,
-          },
-        ],
+      this.haptics.pulse([18, 26, 18, 32, 18]);
+      await showDailyGoalRewardOverlay(this.overlayHost, {
+        goalTitles: newlyCompletedGoals.map((goalId) => getGoalTitle(goalId)),
       });
     }
 
