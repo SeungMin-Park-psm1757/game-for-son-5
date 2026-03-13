@@ -53,27 +53,15 @@ function createStage(options: HomeOptions): {
 } {
   const shell = element('div', 'home-stage-shell');
   const atmosphere = element('div', 'home-stage-atmosphere');
+  atmosphere.style.setProperty(
+    '--painted-bg',
+    `url(${new URL('assets/backgrounds/home-soft-painted.svg', window.location.href.split('#')[0]).toString()})`,
+  );
   atmosphere.innerHTML = `
-    <div class="home-stage-sun"></div>
-    <div class="home-stage-cloud home-stage-cloud-left"><span></span><span></span><span></span></div>
-    <div class="home-stage-cloud home-stage-cloud-mid"><span></span><span></span><span></span></div>
-    <div class="home-stage-cloud home-stage-cloud-right"><span></span><span></span><span></span></div>
-    <div class="home-stage-mountain home-stage-mountain-back"></div>
-    <div class="home-stage-mountain home-stage-mountain-front"></div>
-    <div class="home-stage-pavilion home-stage-pavilion-left"></div>
-    <div class="home-stage-pavilion home-stage-pavilion-right"></div>
-    <div class="home-stage-lane-rail home-stage-lane-rail-left"></div>
-    <div class="home-stage-lane-rail home-stage-lane-rail-right"></div>
-    <div class="home-stage-haze"></div>
-    <div class="home-stage-target"></div>
-    <div class="home-stage-target-shadow"></div>
-    <div class="home-stage-archer"></div>
-    <div class="home-stage-bow"></div>
-    <div class="home-stage-arrow"></div>
-    <div class="home-stage-flag home-stage-flag-left"></div>
-    <div class="home-stage-flag home-stage-flag-right"></div>
-    <div class="home-stage-streamer home-stage-streamer-left"></div>
-    <div class="home-stage-streamer home-stage-streamer-right"></div>
+    <div class="home-stage-painted-backdrop"></div>
+    <div class="home-stage-painted-vignette"></div>
+    <div class="home-stage-painted-glow home-stage-painted-glow-left"></div>
+    <div class="home-stage-painted-glow home-stage-painted-glow-right"></div>
   `;
 
   const header = element('div', 'home-stage-header');
