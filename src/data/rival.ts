@@ -278,12 +278,16 @@ export function parseRivalId(value: string | null): RivalId | null {
   return value in RIVAL_ROSTER ? (value as RivalId) : null;
 }
 
-export function pickRandomRival(modeId: ModeId, random = Math.random): RivalProfile | null {
+export function listRivals(modeId: ModeId): RivalProfile[] {
   if (modeId === 'practice6') {
-    return null;
+    return [];
   }
 
-  const entries = Object.values(RIVAL_ROSTER);
+  return Object.values(RIVAL_ROSTER);
+}
+
+export function pickRandomRival(modeId: ModeId, random = Math.random): RivalProfile | null {
+  const entries = listRivals(modeId);
   return entries[Math.floor(random() * entries.length)] ?? entries[0] ?? null;
 }
 

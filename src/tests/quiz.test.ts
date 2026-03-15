@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildQuizChallengeForType, createDictationQuizChallenge, createMathQuizChallenge, createSpellingQuizChallenge, pickQuizType } from '../data/quizData';
+import {
+  buildQuizChallengeForType,
+  buildQuizRun,
+  createDictationQuizChallenge,
+  createMathQuizChallenge,
+  createSpellingQuizChallenge,
+  pickQuizType,
+} from '../data/quizData';
 
 describe('quiz challenge generation', () => {
   it('locks practice mode to math quizzes', () => {
@@ -11,6 +18,15 @@ describe('quiz challenge generation', () => {
     expect(pickQuizType('chapterKorea9', 0.2)).toBe('math');
     expect(pickQuizType('chapterJapan9', 0.4)).toBe('spelling');
     expect(pickQuizType('chapterUsa9', 0.9)).toBe('dictation');
+  });
+
+  it('builds a two-step quiz run with distinct quiz types', () => {
+    const run = buildQuizRun('practice6');
+
+    expect(run).toHaveLength(2);
+    expect(run[0]?.type).toBe('math');
+    expect(run[1]?.type).toBe('dictation');
+    expect(new Set(run.map((challenge) => challenge.type)).size).toBe(2);
   });
 
   it('creates math quizzes with four unique choices including the answer', () => {

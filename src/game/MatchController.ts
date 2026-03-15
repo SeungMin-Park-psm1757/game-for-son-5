@@ -9,7 +9,7 @@ import { HapticsService } from '../services/HapticsService';
 import type { StoryTrigger } from '../story/types';
 import type { AppSettings, CalibrationProfile, MatchRecord, ModeId, RivalId } from '../types';
 import { element, type ScreenController } from '../ui/dom';
-import { MatchHUD, type MatchImpactBriefing } from '../ui/MatchHUD';
+import { MatchHUD, type MatchImpactBriefing, type MatchScoreFlash } from '../ui/MatchHUD';
 import { simulateArrowFlight } from './Ballistics';
 import { ArcheryScene } from './ArcheryScene';
 import { getPlayerProgress } from './playerProgress';
@@ -53,6 +53,7 @@ export class MatchController implements ScreenController {
   private drawing = false;
   private animating = false;
   private paused = false;
+  private destroyed = false;
   private arrowIndex = 0;
   private totalScore = 0;
   private xCount = 0;
@@ -70,6 +71,8 @@ export class MatchController implements ScreenController {
   private arrowPatternSeed = Math.random() * Math.PI * 2;
   private impactBriefing: MatchImpactBriefing | null = null;
   private impactBriefingUntil = 0;
+  private scoreFlash: MatchScoreFlash | null = null;
+  private scoreFlashUntil = 0;
   private progress = getPlayerProgress([]);
   private readonly rival;
   private rivalTotalScore = 0;
@@ -92,8 +95,8 @@ export class MatchController implements ScreenController {
 
     this.pauseOverlay.innerHTML = `
       <div class="panel pause-card">
-        <h2 class="section-title">잠시 숨 고르기</h2>
-        <p class="muted-text">계속을 누르면 바로 경기로 돌아갑니다.</p>
+        <h2 class="section-title">\uc77c\uc2dc \uc815\uc9c0</h2>
+        <p class="muted-text">\uacc4\uc18d \ubc84\ud2bc\uc744 \ub204\ub974\uba74 \ubc14\ub85c \uacbd\uae30\ub85c \ub3cc\uc544\uac11\ub2c8\ub2e4.</p>
       </div>
     `;
     this.pauseOverlay.hidden = true;
@@ -118,6 +121,7 @@ export class MatchController implements ScreenController {
   }
 
   public destroy(): void {
+    this.destroyed = true;
     window.cancelAnimationFrame(this.frameHandle);
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('pointerup', this.onWindowPointerUp);
@@ -201,6 +205,10 @@ export class MatchController implements ScreenController {
   }
 
   private loop = () => {
+    if (this.destroyed) {
+      return;
+    }
+
     const now = performance.now();
     const nextProgress = getPlayerProgress(this.options.records, this.arrowIndex);
     if (nextProgress.level !== this.progress.level) {
@@ -219,6 +227,9 @@ export class MatchController implements ScreenController {
 
     if (this.impactBriefing && now >= this.impactBriefingUntil) {
       this.impactBriefing = null;
+    }
+    if (this.scoreFlash && now >= this.scoreFlashUntil) {
+      this.scoreFlash = null;
     }
 
     const drawVisualRatio = Math.min(frame.drawDuration / 0.92, 1);
@@ -243,8 +254,9 @@ export class MatchController implements ScreenController {
       tension: frame.tension,
       releaseTiming: frame.releaseTiming,
       drawing: this.drawing,
-      turnLabel: this.rivalTurn ? `${this.rival?.name ?? '라이벌'} 차례` : '정우 차례',
+      turnLabel: this.rivalTurn ? `${this.rival?.name ?? '\uc0c1\ub300'} \ucc28\ub840` : `${this.getPlayerDisplayName()} \ucc28\ub840`,
       impactBriefing: this.impactBriefing,
+      scoreFlash: this.scoreFlash,
     });
 
     this.frameHandle = window.requestAnimationFrame(this.loop);
@@ -288,8 +300,20 @@ export class MatchController implements ScreenController {
     this.options.audio.playShot();
     this.options.haptics.pulse(12);
     await this.scene.playShot(shotPath.path, shotPath.hitX, shotPath.hitY);
+    if (this.destroyed) {
+      return;
+    }
+
     this.options.audio.playImpact(shotScore.score >= 9 || Boolean(impactResolution.specialLabel));
-    this.options.haptics.pulse(impactResolution.specialLabel ? [18, 28, 18, 28, 22] : shotScore.isX ? [14, 26, 18, 30, 18] : shotScore.score >= 9 ? [16, 30, 18] : 12);
+    this.options.haptics.pulse(
+      impactResolution.specialLabel
+        ? [18, 28, 18, 28, 22]
+        : shotScore.isX
+          ? [14, 26, 18, 30, 18]
+          : shotScore.score >= 9
+            ? [16, 30, 18]
+            : 12,
+    );
 
     this.arrowScores.push(shotScore.score);
     this.totalScore += shotScore.score;
@@ -301,6 +325,20 @@ export class MatchController implements ScreenController {
     this.hitHistory.push({ x: shotPath.hitX, y: shotPath.hitY });
     this.lowScoreStreak = shotScore.score <= 5 ? this.lowScoreStreak + 1 : 0;
     this.arrowIndex += 1;
+
+    this.setScoreFlash(
+      createScoreFlash({
+        owner: 'player',
+        shooterLabel: this.getPlayerDisplayName(),
+        score: shotScore.score,
+        isX: shotScore.isX,
+        playerTotal: this.totalScore,
+        rivalName: this.rival?.name ?? null,
+        rivalTotal: this.rivalTotalScore,
+        isSpecial: Boolean(impactResolution.specialLabel),
+      }),
+    );
+
     this.impactBriefing = createImpactBriefing(
       this.mode.locationLabel,
       shotScore.score,
@@ -350,35 +388,46 @@ export class MatchController implements ScreenController {
       return;
     }
 
+    this.rivalTurn = true;
+    this.impactBriefing = createRivalAimBriefing(this.rival.name, this.rival.title);
+    this.impactBriefingUntil = Number.POSITIVE_INFINITY;
+
+    const canShoot = await this.waitForUnpausedDuration(randomInt(500, 1500));
+    if (!canShoot || !this.rival) {
+      this.rivalTurn = false;
+      this.animating = false;
+      this.impactBriefing = null;
+      return;
+    }
+
     const shot = createRivalShot(this.mode.id, this.rivalArrowScores.length);
     if (!shot) {
       this.rivalTurn = false;
       this.animating = false;
+      this.impactBriefing = null;
       return;
     }
 
-    this.rivalTurn = true;
-    this.impactBriefing = {
-      tone: 'normal',
-      icon: '🏁',
-      tag: '라이벌',
-      headline: `${this.rival.name} 선공`,
-      detail: `${this.rival.title}이 먼저 시위를 당깁니다`,
-      scoreText: 'READY',
-      isHighlight: false,
-    };
-    this.impactBriefingUntil = performance.now() + 650;
     await this.scene.playRivalShot(shot.hitX, shot.hitY);
+    if (this.destroyed || !this.rival) {
+      return;
+    }
 
     this.rivalArrowScores.push(shot.score);
     this.rivalTotalScore += shot.score;
-    this.impactBriefing = createImpactBriefing(
-      this.rival.name,
-      shot.score,
-      shot.isX,
-      shot.hitX,
-      shot.hitY,
+    this.setScoreFlash(
+      createScoreFlash({
+        owner: 'rival',
+        shooterLabel: this.rival.name,
+        score: shot.score,
+        isX: shot.isX,
+        playerTotal: this.totalScore,
+        rivalName: this.rival.name,
+        rivalTotal: this.rivalTotalScore,
+        isSpecial: false,
+      }),
     );
+    this.impactBriefing = createImpactBriefing(this.rival.name, shot.score, shot.isX, shot.hitX, shot.hitY);
     this.impactBriefingUntil = performance.now() + 1100;
     this.rivalTurn = false;
     this.animating = false;
@@ -434,6 +483,37 @@ export class MatchController implements ScreenController {
     this.pauseOverlay.hidden = !this.paused;
   }
 
+  private getPlayerDisplayName(): string {
+    const trimmed = this.options.settings.profileName.trim();
+    return trimmed.length > 0 ? trimmed : '\uc815\uc6b0';
+  }
+
+  private setScoreFlash(flash: MatchScoreFlash): void {
+    this.scoreFlash = flash;
+    this.scoreFlashUntil = performance.now() + 540;
+  }
+
+  private async waitForUnpausedDuration(durationMs: number): Promise<boolean> {
+    let remaining = durationMs;
+
+    while (remaining > 0) {
+      if (this.destroyed) {
+        return false;
+      }
+
+      if (this.paused) {
+        await delay(60);
+        continue;
+      }
+
+      const step = Math.min(remaining, 60);
+      await delay(step);
+      remaining -= step;
+    }
+
+    return !this.destroyed;
+  }
+
   private composeAimFrame(now: number): AimFrameState {
     const fallback: AimSnapshot = {
       source: 'touch',
@@ -473,7 +553,8 @@ export class MatchController implements ScreenController {
 
     const time = now / 1000;
     const tension = clamp(drawDuration / 1.38, 0, 1.08);
-    const amplitude = (0.008 + tension * 0.034) * (1.04 - baseStability * 0.16) * this.mode.tremorMultiplier * this.progress.tremorMultiplier;
+    const amplitude =
+      (0.008 + tension * 0.034) * (1.04 - baseStability * 0.16) * this.mode.tremorMultiplier * this.progress.tremorMultiplier;
     const offsetYaw =
       Math.sin(time * 8.4 + this.arrowPatternSeed) * amplitude +
       Math.sin(time * 12.6 + this.arrowPatternSeed * 0.5) * amplitude * 0.38;
@@ -526,10 +607,10 @@ function createImpactBriefing(
   if (score <= 0) {
     return {
       tone,
-      icon: '🗞',
-      tag: '속보',
-      headline: `${locationLabel} 판정`,
-      detail: '표적 바깥',
+      icon: '\ud83d\udca8',
+      tag: '\ubc97\uc5b4\ub0a8',
+      headline: `${locationLabel} \uc0ac\uc815`,
+      detail: '\ud45c\uc801 \ubc14\uae65',
       scoreText: 'MISS',
       isHighlight: false,
       specialLabel,
@@ -542,12 +623,24 @@ function createImpactBriefing(
   return {
     tone,
     icon: getImpactIcon(tone),
-    tag: tone === 'overlap' ? '특보' : tone === 'x' ? 'X 링' : tone === 'ten' ? '10점' : '속보',
-    headline: tone === 'overlap' ? '같은 자리 재명중' : `${locationLabel} ${ring}`,
+    tag: tone === 'overlap' ? '\uc911\ucca9' : tone === 'x' ? 'X-RING' : tone === 'ten' ? '10-RING' : '\uc801\uc911',
+    headline: tone === 'overlap' ? '\uac19\uc740 \uc790\ub9ac \uc911\ucca9' : `${locationLabel} ${ring}`,
     detail: `${direction} · ${ring}`,
-    scoreText: isX ? 'X' : `${score}점`,
+    scoreText: isX ? 'X' : `${score}`,
     isHighlight: score >= 9 || Boolean(specialLabel),
     specialLabel,
+  };
+}
+
+function createRivalAimBriefing(rivalName: string, rivalTitle: string): MatchImpactBriefing {
+  return {
+    tone: 'normal',
+    icon: '\ud83c\udfaf',
+    tag: '\uc0c1\ub300 \uc870\uc900',
+    headline: `${rivalName} \uc870\uc900 \uc911`,
+    detail: `${rivalTitle}\uac00 \ud638\ud761\uc744 \uace0\ub974\uace0 \uc788\uc5b4\uc694.`,
+    scoreText: '...',
+    isHighlight: false,
   };
 }
 
@@ -570,55 +663,55 @@ function getImpactTone(score: number, isX: boolean, specialLabel?: string): Matc
 function getImpactIcon(tone: MatchImpactBriefing['tone']): string {
   switch (tone) {
     case 'overlap':
-      return '🔥';
+      return '\ud83d\udd25';
     case 'x':
-      return '✨';
+      return '\u2728';
     case 'ten':
-      return '🥇';
+      return '\ud83c\udfc5';
     case 'miss':
-      return '🧭';
+      return '\ud83d\udcab';
     default:
-      return '🗞';
+      return '\ud83c\udfaf';
   }
 }
 
 function describeRing(score: number, isX: boolean): string {
   if (isX) {
-    return '정중앙 X링';
+    return 'X\ub9c1';
   }
   if (score >= 9) {
-    return '골드 링';
+    return '\uace8\ub4dc \ub9c1';
   }
   if (score >= 7) {
-    return '레드 링';
+    return '\ub808\ub4dc \ub9c1';
   }
   if (score >= 5) {
-    return '블루 링';
+    return '\ube14\ub8e8 \ub9c1';
   }
   if (score >= 3) {
-    return '블랙 링';
+    return '\ube14\ub799 \ub9c1';
   }
-  return '화이트 링';
+  return '\ud654\uc774\ud2b8 \ub9c1';
 }
 
 function describeImpactZone(hitX: number, hitY: number): string {
   const distance = Math.hypot(hitX, hitY);
   if (distance < 0.08) {
-    return '정중앙';
+    return '\uc815\uc911\uc559';
   }
 
-  const horizontal = Math.abs(hitX) > 0.08 ? (hitX > 0 ? '우' : '좌') : '';
-  const vertical = Math.abs(hitY) > 0.08 ? (hitY > 0 ? '상' : '하') : '';
+  const horizontal = Math.abs(hitX) > 0.08 ? (hitX > 0 ? '\uc624\ub978\ucabd' : '\uc67c\ucabd') : '';
+  const vertical = Math.abs(hitY) > 0.08 ? (hitY > 0 ? '\uc704' : '\uc544\ub798') : '';
   if (horizontal && vertical) {
-    return `${horizontal}${vertical} 방향`;
+    return `${horizontal} ${vertical}`;
   }
   if (horizontal) {
-    return `${horizontal}측`;
+    return horizontal;
   }
   if (vertical) {
-    return `${vertical}측`;
+    return vertical;
   }
-  return '중앙선';
+  return '\uc911\uc559';
 }
 
 function resolveImpactPlacement(
@@ -636,7 +729,7 @@ function resolveImpactPlacement(
     return {
       hitX,
       hitY,
-      specialLabel: '로빈훗 샷! 이전 화살 자리를 다시 꿰뚫었습니다.',
+      specialLabel: '\ud654\uc0b4\uc774 \uac70\uc758 \uac19\uc740 \uc790\ub9ac\uc5d0 \ub2e4\uc2dc \uaf42\ud614\uc5b4\uc694.',
     };
   }
 
@@ -668,6 +761,45 @@ function applyImpactOffset(path: Array<{ x: number; y: number }>, deltaX: number
   }
 }
 
+function createScoreFlash(options: {
+  owner: MatchScoreFlash['owner'];
+  shooterLabel: string;
+  score: number;
+  isX: boolean;
+  playerTotal: number;
+  rivalName: string | null;
+  rivalTotal: number;
+  isSpecial: boolean;
+}): MatchScoreFlash {
+  const scoreText = options.score <= 0 ? 'MISS' : options.isX ? 'X' : `${options.score}`;
+  const totalsText = options.rivalName
+    ? `\ub0b4 ${options.playerTotal} : ${options.rivalName} ${options.rivalTotal}`
+    : `\ucd1d\uc810 ${options.playerTotal}`;
+  const tone = getScoreFlashTone(options.score, options.isX, options.isSpecial);
+
+  return {
+    owner: options.owner,
+    label: options.shooterLabel,
+    scoreText,
+    totalsText,
+    tone,
+    isShowy: tone === 'high' || tone === 'perfect',
+  };
+}
+
+function getScoreFlashTone(score: number, isX: boolean, isSpecial: boolean): MatchScoreFlash['tone'] {
+  if (score <= 0) {
+    return 'miss';
+  }
+  if (isX || isSpecial || score === 10) {
+    return 'perfect';
+  }
+  if (score >= 8) {
+    return 'high';
+  }
+  return 'normal';
+}
+
 function createRecordId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -692,4 +824,14 @@ function safeReleasePointerCapture(node: HTMLElement, pointerId: number): void {
   } catch {
     // A missed release should not break the whole match loop.
   }
+}
+
+function delay(durationMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

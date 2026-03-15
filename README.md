@@ -5,8 +5,11 @@ Family Archery 3D is a mobile-first 3D web archery game with a warm family cheer
 ## Game Overview
 - Family home stage with quick access to `게임 시작`, `명예의 전당`, and `설정`.
 - Quiz gate before each match with chapter-sensitive math, spelling, and dictation challenges.
+- Challenge modes now let the player pick a rival before the match starts.
+- Match start quiz gate now runs two different quiz types in sequence before opening the range.
 - Touch-first hold-to-draw aiming with desktop mouse fallback.
 - Stylized 3D range with scoped aiming, chapter-based wind difficulty, and ring scoring.
+- Rival turns now include a short aiming delay and center-screen score flashes so head-to-head pacing feels more like a live match.
 - Practice 6 arrows and chapter record matches for Korea, Japan, and USA.
 - Progression level reduces tremor and updates arrow tip, feather, and bow grip colors.
 - Data-driven family events support toast, overlay dialog, and full story scene delivery.

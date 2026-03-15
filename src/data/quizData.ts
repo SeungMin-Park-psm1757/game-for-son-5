@@ -93,6 +93,39 @@ export function buildQuizChallenge(modeId: ModeId, random = Math.random): QuizCh
   return buildQuizChallengeForType(type, modeId, random);
 }
 
+export function getQuizTypePool(modeId: ModeId): QuizType[] {
+  if (modeId === 'practice6') {
+    return ['math', 'dictation'];
+  }
+
+  return ['math', 'spelling', 'dictation'];
+}
+
+export function buildQuizRun(modeId: ModeId, count = 2, random = Math.random): QuizChallenge[] {
+  return pickQuizTypes(modeId, count, random).map((type) => buildQuizChallengeForType(type, modeId, random));
+}
+
+export function pickQuizTypes(modeId: ModeId, count = 2, random = Math.random): QuizType[] {
+  const available = getQuizTypePool(modeId);
+  const selected: QuizType[] = [];
+  const targetCount = Math.min(count, available.length);
+
+  while (selected.length < targetCount) {
+    let candidate = pickQuizType(modeId, random());
+    const remaining = available.filter((type) => !selected.includes(type));
+
+    if (!remaining.includes(candidate)) {
+      candidate = remaining[Math.floor(random() * remaining.length)] ?? available[0] ?? 'math';
+    }
+
+    if (!selected.includes(candidate)) {
+      selected.push(candidate);
+    }
+  }
+
+  return selected;
+}
+
 export function buildQuizChallengeForType(type: QuizType, modeId: ModeId, random = Math.random): QuizChallenge {
   switch (type) {
     case 'math':

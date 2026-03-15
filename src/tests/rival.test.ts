@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scoreTarget, TARGET_RADIUS } from '../game/Scoring';
-import { createRivalShot, getRivalProfile, getRivalResultCutin, pickRandomRival } from '../data/rival';
+import { createRivalShot, getRivalProfile, getRivalResultCutin, listRivals, pickRandomRival } from '../data/rival';
 
 describe('rival data', () => {
   it('does not create a rival for practice mode', () => {
@@ -16,6 +16,12 @@ describe('rival data', () => {
   it('can pick a random rival from the roster', () => {
     const rival = pickRandomRival('chapterKorea9', () => 0.9);
     expect(rival).not.toBeNull();
+  });
+
+  it('lists selectable rivals for challenge modes', () => {
+    const rivals = listRivals('chapterUsa9');
+    expect(rivals.length).toBeGreaterThanOrEqual(3);
+    expect(rivals.some((rival) => rival.id === 'siwoo')).toBe(true);
   });
 
   it('returns a rival result cut-in for the result screen', () => {

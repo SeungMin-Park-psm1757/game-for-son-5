@@ -10,14 +10,15 @@ import { createResultScreen } from '../ui/ResultScreen';
 import { createSettingsScreen } from '../ui/SettingsScreen';
 import { showDailyGoalRewardOverlay } from '../ui/DailyGoalRewardOverlay';
 import { presentQuizGate } from '../ui/QuizGate';
+import { presentRivalPicker } from '../ui/RivalPicker';
 import { clearNode, type ScreenController } from '../ui/dom';
 import { createHomeSupportSession } from '../data/homeSupport';
 import { getDailyGoalStatuses, getGoalTitle, getNewlyCompletedGoalIds } from '../data/dailyGoals';
-import { createRivalIntroEvent, parseRivalId, pickRandomRival } from '../data/rival';
+import { createRivalIntroEvent, parseRivalId } from '../data/rival';
 import type { MatchSummary } from '../game/types';
 import { MatchController } from '../game/MatchController';
 import type { StoryTrigger } from '../story/types';
-import type { AppStorageSnapshot, ModeId } from '../types';
+import type { AppStorageSnapshot, ModeId, RivalId } from '../types';
 
 export class App {
   private snapshot: AppStorageSnapshot = loadSnapshot();
@@ -147,7 +148,7 @@ export class App {
         createResultScreen({
           summary: this.lastResult,
           onHome: () => this.navigate(buildRoute('home')),
-          onRematch: () => void this.beginMode(this.lastResult?.record.mode ?? 'practice6'),
+          onRematch: () => void this.beginMode(this.lastResult?.record.mode ?? 'practice6', this.lastResult?.rivalId ?? null),
         }),
       );
 
@@ -171,20 +172,32 @@ export class App {
     window.location.hash = hash;
   }
 
-  private async beginMode(mode: ModeId): Promise<void> {
+  private async beginMode(mode: ModeId, preferredRivalId: RivalId | null = null): Promise<void> {
     void this.audio.resume();
+    let rival = mode === 'practice6' ? null : preferredRivalId;
+
+    if (mode !== 'practice6') {
+      rival = await presentRivalPicker(this.overlayHost, {
+        modeId: mode,
+        initialRivalId: preferredRivalId,
+      });
+      if (!rival) {
+        return;
+      }
+    }
+
     const passed = await presentQuizGate(this.overlayHost, { modeId: mode });
     if (!passed) {
       return;
     }
 
     await this.triggerStory({ type: 'first_launch' });
-    const rival = pickRandomRival(mode);
-    if (mode !== 'practice6' && rival) {
-      await this.overlay.present(createRivalIntroEvent(mode, rival.id));
+    const rivalId = mode === 'practice6' ? null : rival;
+    if (mode !== 'practice6' && rivalId) {
+      await this.overlay.present(createRivalIntroEvent(mode, rivalId));
     }
 
-    this.navigate(buildRoute('match', rival ? { mode, rival: rival.id } : { mode }));
+    this.navigate(buildRoute('match', rivalId ? { mode, rival: rivalId } : { mode }));
   }
 
   private async handleMatchComplete(summary: MatchSummary): Promise<void> {

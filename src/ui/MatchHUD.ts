@@ -12,6 +12,15 @@ export interface MatchImpactBriefing {
   specialLabel?: string;
 }
 
+export interface MatchScoreFlash {
+  owner: 'player' | 'rival';
+  label: string;
+  scoreText: string;
+  totalsText: string;
+  tone: 'miss' | 'normal' | 'high' | 'perfect';
+  isShowy: boolean;
+}
+
 export interface MatchHudState {
   modeLabel: string;
   arrowIndex: number;
@@ -30,6 +39,7 @@ export interface MatchHudState {
   drawing: boolean;
   turnLabel: string;
   impactBriefing: MatchImpactBriefing | null;
+  scoreFlash: MatchScoreFlash | null;
 }
 
 interface MatchHudOptions {
@@ -42,20 +52,21 @@ export class MatchHUD {
   public readonly element: HTMLElement;
   private readonly ribbon = element('div', 'hud-ribbon');
   private readonly debug = element('div', 'hud-debug');
-  private readonly pauseButton = element('button', 'secondary-button hud-icon-button', '⏸');
+  private readonly pauseButton = element('button', 'secondary-button hud-icon-button', 'II');
   private readonly coachCard = element('div', 'hud-coach-card');
   private readonly impactFlash = element('div', 'hit-briefing');
+  private readonly scoreFlash = element('div', 'score-flash');
   private readonly scope = this.createScopeReticle();
   private readonly scopeDot: HTMLElement;
 
   constructor(options: MatchHudOptions) {
     const root = element('div', 'match-hud');
     const actionBar = element('div', 'hud-icon-actions');
-    const recenterButton = element('button', 'secondary-button hud-icon-button', '🧭');
-    const quitButton = element('button', 'secondary-button hud-icon-button', '🏠');
-    recenterButton.title = '중앙 복귀';
-    this.pauseButton.title = '일시정지';
-    quitButton.title = '홈';
+    const recenterButton = element('button', 'secondary-button hud-icon-button', 'R');
+    const quitButton = element('button', 'secondary-button hud-icon-button', 'X');
+    recenterButton.title = '\uc911\uc559 \ubcf5\uadc0';
+    this.pauseButton.title = '\uc77c\uc2dc\uc815\uc9c0';
+    quitButton.title = '\ub098\uac00\uae30';
     actionBar.append(recenterButton, this.pauseButton, quitButton);
 
     const topBar = element('div', 'hud-topbar');
@@ -63,11 +74,12 @@ export class MatchHUD {
 
     const bottomBar = element('div', 'hud-bottombar');
     bottomBar.append(this.coachCard, this.debug);
-    root.append(this.scope, topBar, this.impactFlash, bottomBar);
+    root.append(this.scope, topBar, this.impactFlash, this.scoreFlash, bottomBar);
     this.element = root;
 
     this.scopeDot = this.scope.querySelector('.scope-dot') as HTMLElement;
     this.impactFlash.hidden = true;
+    this.scoreFlash.hidden = true;
 
     this.pauseButton.addEventListener('click', options.onPauseToggle);
     recenterButton.addEventListener('click', options.onRecenter);
@@ -77,32 +89,38 @@ export class MatchHUD {
   public update(state: MatchHudState): void {
     this.ribbon.innerHTML = `
       <span>${state.modeLabel}</span>
-      <span>🎯 ${Math.min(state.arrowIndex + 1, state.arrowCount)}/${state.arrowCount}</span>
-      <span>🏹 ${state.totalScore}점</span>
-      <span>✨ X ${state.xCount}</span>
-      <span>🏅 ${state.levelLabel}</span>
+      <span>\ud654\uc0b4 ${Math.min(state.arrowIndex + 1, state.arrowCount)}/${state.arrowCount}</span>
+      <span>\ucd1d\uc810 ${state.totalScore}</span>
+      <span>X ${state.xCount}</span>
+      <span>${state.levelLabel}</span>
     `;
 
     const tensionLabel = getTensionLabel(state.tension);
     const timingLabel = getTimingLabel(state.releaseTiming);
-    const modeHint = state.drawing ? '누른 채 유지하고 좋은 순간에 놓으세요' : '길게 눌러 스코프 확대 후 놓으세요';
-    const scoreLine = state.rivalName ? `${state.rivalName} ${state.rivalScore}점 · 정우 ${state.totalScore}점` : `정우 ${state.totalScore}점`;
+    const modeHint = state.drawing
+      ? '\ud65c\uc2dc\uc704\ub97c \uace0\uc815\ud558\uace0 \uc88b\uc740 \ud0c0\uc774\ubc0d\uc744 \ub9de\ucdb0\ubd10\uc694.'
+      : '\uae38\uac8c \ub20c\ub7ec \uc26c\uac70\ub098 Space\ub97c \ub204\ub974\uba74 \uc2dc\uc704\ub97c \ub2f9\uae38 \uc218 \uc788\uc5b4\uc694.';
+    const scoreLine = state.rivalName
+      ? `\ub0b4 \uc810\uc218 ${state.totalScore} · ${state.rivalName} ${state.rivalScore}`
+      : `\ucd1d\uc810 ${state.totalScore}`;
+
     this.coachCard.innerHTML = `
       <div class="coach-meta-row">
-        <span class="coach-label">릴리스 타이밍</span>
+        <span class="coach-label">\ud134 \uc548\ub0b4</span>
         <span class="coach-wind">${state.turnLabel}</span>
       </div>
       <strong>${timingLabel}</strong>
       <small>${scoreLine}</small>
-      <small>긴장도 ${tensionLabel} · 바람 ${state.windLabel} · ${modeHint}</small>
+      <small>\uae34\uc7a5\uac10 ${tensionLabel} · \ubc14\ub78c ${state.windLabel} · ${modeHint}</small>
       <div class="timing-meter">
         <span class="timing-fill" style="transform: scaleX(${state.releaseTiming.toFixed(3)})"></span>
       </div>
     `;
 
-    this.pauseButton.textContent = state.paused ? '▶' : '⏸';
+    this.pauseButton.textContent = state.paused ? '>' : 'II';
     this.element.dataset.drawing = state.drawing ? 'true' : 'false';
     this.element.dataset.impact = state.impactBriefing ? 'true' : 'false';
+    this.element.dataset.scoreFlash = state.scoreFlash ? 'true' : 'false';
     this.debug.hidden = !state.debugEnabled;
     this.debug.innerHTML = `
       <strong>debug</strong>
@@ -123,6 +141,20 @@ export class MatchHUD {
       `;
     } else {
       this.impactFlash.hidden = true;
+    }
+
+    if (state.scoreFlash) {
+      this.scoreFlash.hidden = false;
+      this.scoreFlash.dataset.owner = state.scoreFlash.owner;
+      this.scoreFlash.dataset.tone = state.scoreFlash.tone;
+      this.scoreFlash.dataset.showy = state.scoreFlash.isShowy ? 'true' : 'false';
+      this.scoreFlash.innerHTML = `
+        <span class="score-flash-label">${state.scoreFlash.label}</span>
+        <strong>${state.scoreFlash.scoreText}</strong>
+        <small>${state.scoreFlash.totalsText}</small>
+      `;
+    } else {
+      this.scoreFlash.hidden = true;
     }
 
     const scopeX = clamp(state.snapshot.yaw * 34, -40, 40);
@@ -148,25 +180,25 @@ export class MatchHUD {
 
 function getTimingLabel(timing: number): string {
   if (timing >= 0.8) {
-    return '지금 놓기 좋아요';
+    return '\uc9c0\uae08 \ubc14\ub85c \ub193\uc73c\uba74 \uc88b\uc544\uc694.';
   }
   if (timing >= 0.55) {
-    return '곧 좋은 순간이 옵니다';
+    return '\uac70\uc758 \uc88b\uc740 \ud0c0\uc774\ubc0d\uc774\uc5d0\uc694.';
   }
   if (timing >= 0.3) {
-    return '한 박자 더 기다려보세요';
+    return '\ud55c \ubc15\uc790\ub9cc \ub354 \uae30\ub2e4\ub824 \ubcf4\uc138\uc694.';
   }
-  return '아직 떨림이 큽니다';
+  return '\uc544\uc9c1 \uc27c \ud0c0\uc774\ubc0d\uc774 \uc798 \ub9de\uc544\uc694.';
 }
 
 function getTensionLabel(tension: number): string {
   if (tension >= 0.92) {
-    return '높음';
+    return '\ub192\uc74c';
   }
   if (tension >= 0.55) {
-    return '집중 중';
+    return '\uc9d1\uc911 \uc911';
   }
-  return '안정적';
+  return '\uc548\uc815\uc801';
 }
 
 function clamp(value: number, min: number, max: number): number {
